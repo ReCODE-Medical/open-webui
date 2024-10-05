@@ -27,6 +27,8 @@ RUN npm ci
 
 COPY . .
 ENV APP_BUILD_HASH=${BUILD_HASH}
+# Increase memory limit for build, otherwise it will fail.
+ENV NODE_OPTIONS="--max-old-space-size=4096" 
 RUN npm run build
 
 ######## WebUI backend ########

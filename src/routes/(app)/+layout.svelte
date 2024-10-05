@@ -1,17 +1,23 @@
 <script lang="ts">
-	import { toast } from 'svelte-sonner';
-	import { onMount, tick, getContext } from 'svelte';
-	import { openDB, deleteDB } from 'idb';
-	import fileSaver from 'file-saver';
-	import mermaid from 'mermaid';
+	/**
+	 * This is the main layout component for the application.
+	 * It handles initialization, global state management, and keyboard shortcuts.
+	 */
+	
+	// Import necessary dependencies
+	import { toast } from 'svelte-sonner'; 				// Toast notifications
+	import { onMount, tick, getContext } from 'svelte';	// Lifecycle hooks
+	import { openDB, deleteDB, type IDBPDatabase } from 'idb';				// IndexedDB, used for storing large amounts of structured data on the client-side (in the user's browser)
+	import fileSaver from 'file-saver';					// FileSaver, used to save chat logs
+	import mermaid from 'mermaid';						// Mermaid, used to render flowcharts
 
 	const { saveAs } = fileSaver;
 
 	import { goto } from '$app/navigation';
 
+	// Import API functions
 	import { getModels as _getModels, getVersionUpdates } from '$lib/apis';
 	import { getAllChatTags } from '$lib/apis/chats';
-
 	import { getPrompts } from '$lib/apis/prompts';
 	import { getDocs } from '$lib/apis/documents';
 	import { getTools } from '$lib/apis/tools';
@@ -19,6 +25,7 @@
 	import { getBanners } from '$lib/apis/configs';
 	import { getUserSettings } from '$lib/apis/users';
 
+	// Import stores. Stores are used to manage global state.
 	import {
 		user,
 		showSettings,
@@ -36,6 +43,7 @@
 		temporaryChatEnabled
 	} from '$lib/stores';
 
+	// Import components. Components are reusable pieces of UI.
 	import SettingsModal from '$lib/components/chat/SettingsModal.svelte';
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 	import ChangelogModal from '$lib/components/ChangelogModal.svelte';
@@ -48,30 +56,40 @@
 	import UpdateInfoToast from '$lib/components/layout/UpdateInfoToast.svelte';
 	import { fade } from 'svelte/transition';
 
+	// Get the i18n context
 	const i18n = getContext('i18n');
 
-	let loaded = false;
-	let DB = null;
-	let localDBChats = [];
+	// Initialize variables
+	let loaded = false;								// Flag to check if the app has loaded
+	let DB: IDBPDatabase<unknown> | null = null;	// IndexedDB instance. Used to store chat logs
+	let localDBChats: string | any[] = [];			// Local chat logs
+	let version: { latest: any; current: any; };	// Version information
 
-	let version;
-
+	/**
+	 * Get models from the API.
+	 */
 	const getModels = async () => {
 		return _getModels(localStorage.token);
 	};
 
+	// Lifecycle hook that runs when the component is mounted.
 	onMount(async () => {
+		
+		// Check if the user is logged in.
 		if ($user === undefined) {
 			await goto('/auth');
 		} else if (['user', 'admin'].includes($user.role)) {
 			try {
-				// Check if IndexedDB exists
+				
+				// Open the local IndexedDB database.
 				DB = await openDB('Chats', 1);
 
 				if (DB) {
+					// Fetch and sort chats.
 					const chats = await DB.getAllFromIndex('chats', 'timestamp');
-					localDBChats = chats.map((item, idx) => chats[chats.length - 1 - idx]);
+					localDBChats = chats.map((item, idx) => chats[chats.length - 1 - idx]); // Reverse the order of chats so latest show first.
 
+					// If there are no chats, delete the database.
 					if (localDBChats.length === 0) {
 						await deleteDB('Chats');
 					}
@@ -82,14 +100,16 @@
 				// IndexedDB Not Found
 			}
 
+			// Get the user settings.
 			const userSettings = await getUserSettings(localStorage.token).catch((error) => {
 				console.error(error);
 				return null;
 			});
 
 			if (userSettings) {
-				settings.set(userSettings.ui);
+				settings.set(userSettings.ui);	// Set the user settings.
 			} else {
+				// If the user settings are not found, try to get them from localStorage.
 				let localStorageSettings = {} as Parameters<(typeof settings)['set']>[0];
 
 				try {
@@ -97,10 +117,10 @@
 				} catch (e: unknown) {
 					console.error('Failed to parse settings from localStorage', e);
 				}
-
 				settings.set(localStorageSettings);
 			}
 
+			// Fetch data in parallel from the API.
 			await Promise.all([
 				(async () => {
 					models.set(await getModels());
@@ -125,6 +145,7 @@
 				})()
 			]);
 
+			// Setup global keyboard shortcuts
 			document.addEventListener('keydown', function (event) {
 				const isCtrlPressed = event.ctrlKey || event.metaKey; // metaKey is for Cmd key on Mac
 				// Check if the Shift key is pressed
@@ -190,22 +211,25 @@
 				}
 			});
 
+			// Show the changelog if the version has changed for the admin user.
 			if ($user.role === 'admin') {
-				showChangelog.set(localStorage.version !== $config.version);
+				// Since config could be null, we set set a default value of 'version' to prevent errors.
+				showChangelog.set(localStorage.version !== ($config?.version ?? ''));
 			}
 
+			// Enable temporary chat if specified in URL
 			if ($page.url.searchParams.get('temporary-chat') === 'true') {
 				temporaryChatEnabled.set(true);
 			}
 
-			// Check for version updates
+			// Check for version updates for admin users
 			if ($user.role === 'admin') {
 				// Check if the user has dismissed the update toast in the last 24 hours
 				if (localStorage.dismissedUpdateToast) {
 					const dismissedUpdateToast = new Date(Number(localStorage.dismissedUpdateToast));
 					const now = new Date();
 
-					if (now - dismissedUpdateToast > 24 * 60 * 60 * 1000) {
+					if (now.getTime() - dismissedUpdateToast.getTime() > 24 * 60 * 60 * 1000) {
 						await checkForVersionUpdates();
 					}
 				} else {
@@ -218,8 +242,11 @@
 		loaded = true;
 	});
 
+	/**
+	 * Check for version updates.
+	 */
 	const checkForVersionUpdates = async () => {
-		version = await getVersionUpdates(localStorage.token).catch((error) => {
+		version = await getVersionUpdates().catch((error) => {
 			return {
 				current: WEBUI_VERSION,
 				latest: WEBUI_VERSION
@@ -228,9 +255,11 @@
 	};
 </script>
 
+<!-- The following code is the main layout of the application. -->
 <SettingsModal bind:show={$showSettings} />
 <ChangelogModal bind:show={$showChangelog} />
 
+<!-- Show update toast if a newer version is available -->
 {#if version && compareVersion(version.latest, version.current)}
 	<div class=" absolute bottom-8 right-8 z-50" in:fade={{ duration: 100 }}>
 		<UpdateInfoToast {version} />
@@ -242,9 +271,11 @@
 		class=" text-gray-700 dark:text-gray-100 bg-white dark:bg-gray-900 h-screen max-h-[100dvh] overflow-auto flex flex-row"
 	>
 		{#if loaded}
-			{#if !['user', 'admin'].includes($user.role)}
+			{#if !['user', 'admin'].includes($user?.role ?? '')}
 				<AccountPending />
 			{:else if localDBChats.length > 0}
+				
+			<!-- Show migration dialog for old IndexedDB chats. -->
 				<div class="fixed w-full h-full flex z-50">
 					<div
 						class="absolute w-full h-full backdrop-blur-md bg-white/20 dark:bg-gray-900/50 flex justify-center"
@@ -256,6 +287,8 @@
 								</div>
 
 								<div class=" mt-4 text-center text-sm dark:text-gray-200 w-full">
+									
+									<!-- Migration instructions. -->
 									{$i18n.t(
 										"Saving chat logs directly to your browser's storage is no longer supported. Please take a moment to download and delete your chat logs by clicking the button below. Don't worry, you can easily re-import your chat logs to the backend through"
 									)}

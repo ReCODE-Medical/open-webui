@@ -874,147 +874,148 @@ webui_app.state.EMBEDDING_FUNCTION = rag_app.state.EMBEDDING_FUNCTION
 
 async def get_all_models():
     # TODO: Optimize this function
-    pipe_models = []
-    openai_models = []
-    ollama_models = []
+    # pipe_models = []
+    # openai_models = []
+    # ollama_models = []
 
-    pipe_models = await get_pipe_models()
+    # pipe_models = await get_pipe_models()
 
-    if app.state.config.ENABLE_OPENAI_API:
-        openai_models = await get_openai_models()
-        openai_models = openai_models["data"]
+    # if app.state.config.ENABLE_OPENAI_API:
+    #     openai_models = await get_openai_models()
+    #     openai_models = openai_models["data"]
 
-    if app.state.config.ENABLE_OLLAMA_API:
-        ollama_models = await get_ollama_models()
-        ollama_models = [
-            {
-                "id": model["model"],
-                "name": model["name"],
-                "object": "model",
-                "created": int(time.time()),
-                "owned_by": "ollama",
-                "ollama": model,
-            }
-            for model in ollama_models["models"]
-        ]
+    # if app.state.config.ENABLE_OLLAMA_API:
+    #     ollama_models = await get_ollama_models()
+    #     ollama_models = [
+    #         {
+    #             "id": model["model"],
+    #             "name": model["name"],
+    #             "object": "model",
+    #             "created": int(time.time()),
+    #             "owned_by": "ollama",
+    #             "ollama": model,
+    #         }
+    #         for model in ollama_models["models"]
+    #     ]
 
-    models = pipe_models + openai_models + ollama_models
+    # models = pipe_models + openai_models + ollama_models
+    models = [] # Try to disable all models.
 
-    global_action_ids = [
-        function.id for function in Functions.get_global_action_functions()
-    ]
-    enabled_action_ids = [
-        function.id
-        for function in Functions.get_functions_by_type("action", active_only=True)
-    ]
+    # global_action_ids = [
+    #     function.id for function in Functions.get_global_action_functions()
+    # ]
+    # enabled_action_ids = [
+    #     function.id
+    #     for function in Functions.get_functions_by_type("action", active_only=True)
+    # ]
 
-    custom_models = Models.get_all_models()
-    for custom_model in custom_models:
-        if custom_model.base_model_id is None:
-            for model in models:
-                if (
-                    custom_model.id == model["id"]
-                    or custom_model.id == model["id"].split(":")[0]
-                ):
-                    model["name"] = custom_model.name
-                    model["info"] = custom_model.model_dump()
+    # custom_models = Models.get_all_models()
+    # for custom_model in custom_models:
+    #     if custom_model.base_model_id is None:
+    #         for model in models:
+    #             if (
+    #                 custom_model.id == model["id"]
+    #                 or custom_model.id == model["id"].split(":")[0]
+    #             ):
+    #                 model["name"] = custom_model.name
+    #                 model["info"] = custom_model.model_dump()
 
-                    action_ids = []
-                    if "info" in model and "meta" in model["info"]:
-                        action_ids.extend(model["info"]["meta"].get("actionIds", []))
+    #                 action_ids = []
+    #                 if "info" in model and "meta" in model["info"]:
+    #                     action_ids.extend(model["info"]["meta"].get("actionIds", []))
 
-                    model["action_ids"] = action_ids
-        else:
-            owned_by = "openai"
-            pipe = None
-            action_ids = []
+    #                 model["action_ids"] = action_ids
+    #     else:
+    #         owned_by = "openai"
+    #         pipe = None
+    #         action_ids = []
 
-            for model in models:
-                if (
-                    custom_model.base_model_id == model["id"]
-                    or custom_model.base_model_id == model["id"].split(":")[0]
-                ):
-                    owned_by = model["owned_by"]
-                    if "pipe" in model:
-                        pipe = model["pipe"]
+    #         for model in models:
+    #             if (
+    #                 custom_model.base_model_id == model["id"]
+    #                 or custom_model.base_model_id == model["id"].split(":")[0]
+    #             ):
+    #                 owned_by = model["owned_by"]
+    #                 if "pipe" in model:
+    #                     pipe = model["pipe"]
 
-                    if "info" in model and "meta" in model["info"]:
-                        action_ids.extend(model["info"]["meta"].get("actionIds", []))
-                    break
+    #                 if "info" in model and "meta" in model["info"]:
+    #                     action_ids.extend(model["info"]["meta"].get("actionIds", []))
+    #                 break
 
-            models.append(
-                {
-                    "id": custom_model.id,
-                    "name": custom_model.name,
-                    "object": "model",
-                    "created": custom_model.created_at,
-                    "owned_by": owned_by,
-                    "info": custom_model.model_dump(),
-                    "preset": True,
-                    **({"pipe": pipe} if pipe is not None else {}),
-                    "action_ids": action_ids,
-                }
-            )
+    #         models.append(
+    #             {
+    #                 "id": custom_model.id,
+    #                 "name": custom_model.name,
+    #                 "object": "model",
+    #                 "created": custom_model.created_at,
+    #                 "owned_by": owned_by,
+    #                 "info": custom_model.model_dump(),
+    #                 "preset": True,
+    #                 **({"pipe": pipe} if pipe is not None else {}),
+    #                 "action_ids": action_ids,
+    #             }
+    #         )
 
-    for model in models:
-        action_ids = []
-        if "action_ids" in model:
-            action_ids = model["action_ids"]
-            del model["action_ids"]
+    # for model in models:
+    #     action_ids = []
+    #     if "action_ids" in model:
+    #         action_ids = model["action_ids"]
+    #         del model["action_ids"]
 
-        action_ids = action_ids + global_action_ids
-        action_ids = list(set(action_ids))
-        action_ids = [
-            action_id for action_id in action_ids if action_id in enabled_action_ids
-        ]
+    #     action_ids = action_ids + global_action_ids
+    #     action_ids = list(set(action_ids))
+    #     action_ids = [
+    #         action_id for action_id in action_ids if action_id in enabled_action_ids
+    #     ]
 
-        model["actions"] = []
-        for action_id in action_ids:
-            action = Functions.get_function_by_id(action_id)
-            if action is None:
-                raise Exception(f"Action not found: {action_id}")
+    #     model["actions"] = []
+    #     for action_id in action_ids:
+    #         action = Functions.get_function_by_id(action_id)
+    #         if action is None:
+    #             raise Exception(f"Action not found: {action_id}")
 
-            if action_id in webui_app.state.FUNCTIONS:
-                function_module = webui_app.state.FUNCTIONS[action_id]
-            else:
-                function_module, _, _ = load_function_module_by_id(action_id)
-                webui_app.state.FUNCTIONS[action_id] = function_module
+    #         if action_id in webui_app.state.FUNCTIONS:
+    #             function_module = webui_app.state.FUNCTIONS[action_id]
+    #         else:
+    #             function_module, _, _ = load_function_module_by_id(action_id)
+    #             webui_app.state.FUNCTIONS[action_id] = function_module
 
-            __webui__ = False
-            if hasattr(function_module, "__webui__"):
-                __webui__ = function_module.__webui__
+    #         __webui__ = False
+    #         if hasattr(function_module, "__webui__"):
+    #             __webui__ = function_module.__webui__
 
-            if hasattr(function_module, "actions"):
-                actions = function_module.actions
-                model["actions"].extend(
-                    [
-                        {
-                            "id": f"{action_id}.{_action['id']}",
-                            "name": _action.get(
-                                "name", f"{action.name} ({_action['id']})"
-                            ),
-                            "description": action.meta.description,
-                            "icon_url": _action.get(
-                                "icon_url", action.meta.manifest.get("icon_url", None)
-                            ),
-                            **({"__webui__": __webui__} if __webui__ else {}),
-                        }
-                        for _action in actions
-                    ]
-                )
-            else:
-                model["actions"].append(
-                    {
-                        "id": action_id,
-                        "name": action.name,
-                        "description": action.meta.description,
-                        "icon_url": action.meta.manifest.get("icon_url", None),
-                        **({"__webui__": __webui__} if __webui__ else {}),
-                    }
-                )
+    #         if hasattr(function_module, "actions"):
+    #             actions = function_module.actions
+    #             model["actions"].extend(
+    #                 [
+    #                     {
+    #                         "id": f"{action_id}.{_action['id']}",
+    #                         "name": _action.get(
+    #                             "name", f"{action.name} ({_action['id']})"
+    #                         ),
+    #                         "description": action.meta.description,
+    #                         "icon_url": _action.get(
+    #                             "icon_url", action.meta.manifest.get("icon_url", None)
+    #                         ),
+    #                         **({"__webui__": __webui__} if __webui__ else {}),
+    #                     }
+    #                     for _action in actions
+    #                 ]
+    #             )
+    #         else:
+    #             model["actions"].append(
+    #                 {
+    #                     "id": action_id,
+    #                     "name": action.name,
+    #                     "description": action.meta.description,
+    #                     "icon_url": action.meta.manifest.get("icon_url", None),
+    #                     **({"__webui__": __webui__} if __webui__ else {}),
+    #                 }
+    #             )
 
-    app.state.MODELS = {model["id"]: model for model in models}
-    webui_app.state.MODELS = app.state.MODELS
+    # app.state.MODELS = {model["id"]: model for model in models}
+    # webui_app.state.MODELS = app.state.MODELS
 
     return models
 

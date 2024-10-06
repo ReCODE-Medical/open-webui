@@ -2,7 +2,6 @@ services:
   open-webui:
     build:
       context: .
-      args:
       dockerfile: Dockerfile
     container_name: open-webui
     volumes:

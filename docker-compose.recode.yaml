@@ -1,0 +1,22 @@
+services:
+  open-webui:
+    build:
+      context: .
+      args:
+      dockerfile: Dockerfile
+    container_name: open-webui
+    volumes:
+      - open-webui:/app/backend/data
+    # depends_on:
+    #   - redis
+    #   - postgres etc.
+    # ports:
+    #   - 8080:8080
+    environment:
+      - 'WEBUI_SECRET_KEY='
+    # extra_hosts:
+    #   - host.docker.internal:host-gateway  # Allows the container to access the host machine, we don't need this.
+    restart: unless-stopped
+
+volumes:
+  open-webui: {}

@@ -13,7 +13,6 @@ services:
     #   - 8080:8080
     environment:
       - 'WEBUI_SECRET_KEY='
-      - 'NODE_OPTIONS="--max-old-space-size=4096"'  # Increase the memory limit for Node.js building.
     # extra_hosts:
     #   - host.docker.internal:host-gateway  # Allows the container to access the host machine, we don't need this.
     restart: unless-stopped

@@ -9,8 +9,8 @@ services:
     # depends_on:
     #   - redis
     #   - postgres etc.
-    # ports:
-    #   - 8080:8080
+    ports:
+      - 8080:8080
     environment:
       - 'WEBUI_SECRET_KEY='
     # extra_hosts:

@@ -21,6 +21,8 @@ services:
       - 'DATABASE_POOL_SIZE=10'
       - 'DATABASE_POOL_MAX_OVERFLOW=20'
       - 'DATABASE_POOL_TIMEOUT=30'
+      - 'VECTOR_DB=milvus'
+      - 'MILVUS_URI=milvus://milvus:19530'
     restart: unless-stopped
 
   postgres:
@@ -43,9 +45,7 @@ services:
     image: redis:alpine
     container_name: redis
     volumes:
-      - redis-data:/app/backend/redis
-    ports:
-      - 6379:6379
+      - redis-data:/data
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
       interval: 1s
@@ -53,7 +53,20 @@ services:
       retries: 5
     restart: always
 
+  milvus:
+    image: milvusdb/milvus:v2.4.12
+    container_name: milvus
+    volumes:
+      - milvus-data:/var/lib/milvus
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 19530"]
+      interval: 1s
+      timeout: 10s
+      retries: 10
+
 volumes:
   open-webui: {}
   redis-data: {}
   postgres-data: {}
+  milvus-data: {}

@@ -13,6 +13,7 @@ services:
       # - ./recode_system_prompt: /app/backend/recode_system_prompt:ro
       # - ./functions:/functions:ro  # TODO: create directory of functions
       # - ./functions.json:/app/backend/functions.json:ro # TODO: present functions in the UI
+      # - mount admin config here and load it
 
     depends_on:
       redis:
@@ -37,6 +38,7 @@ services:
       ENABLE_COMMUNITY_SHARING: false # TODO: true?
       ENABLE_OLLAMA_API: false
       ENABLE_OPENAI_API: true   # False? when we are using Azure OpenAI
+      OPENAI_API_KEY: # LOAD IN?
       AUDIO_STT_ENGINE: openai  # ?
       AUDIO_TTS_ENGINE: openai  # ?
       RAG_EMBEDDING_ENGINE: openai # TODO: 

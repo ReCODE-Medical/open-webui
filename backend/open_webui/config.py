@@ -878,7 +878,7 @@ TOOLS_FUNCTION_CALLING_PROMPT_TEMPLATE = PersistentConfig(
 # Vector Database
 ####################################
 
-VECTOR_DB = os.environ.get("VECTOR_DB", "chroma")
+VECTOR_DB = os.environ.get("VECTOR_DB", "qdrant")
 
 # Chroma
 CHROMA_DATA_PATH = f"{DATA_DIR}/vector_db"
@@ -900,6 +900,9 @@ CHROMA_HTTP_SSL = os.environ.get("CHROMA_HTTP_SSL", "false").lower() == "true"
 # Milvus
 
 MILVUS_URI = os.environ.get("MILVUS_URI", f"{DATA_DIR}/vector_db/milvus.db")
+
+QDRANT_HOST = os.environ.get("QDRANT_HOST", "qdrant")
+QDRANT_PORT = os.environ.get("QDRANT_PORT", "6333")
 
 ####################################
 # Information Retrieval (RAG)

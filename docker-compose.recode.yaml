@@ -20,16 +20,20 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      qdrant:
+        condition: service_started
     ports:
       - 8080:8080
     environment:
       ENV: prod
       WEBUI_NAME: ReCODE
       WEBUI_SECRET_KEY: 
+      
       ENABLE_SIGNUP: true         # TODO: false
       ENABLE_OAUTH_SIGNUP: false  # TODO: true
       ENABLE_LOGIN_FORM: true     # TODO: false
       # OPENID_PROVIDER_URL:      # TODO: add openid provider of OAuth
+      
       DEFAULT_USER_ROLE: user     # TODO: pending ? admin ?
       USER_PERMISSIONS_CHAT_DELETION: false
       USER_PERMISSIONS_CHAT_EDITING: false
@@ -38,23 +42,30 @@ services:
       ENABLE_COMMUNITY_SHARING: false # TODO: true?
       ENABLE_OLLAMA_API: false
       ENABLE_OPENAI_API: true   # False? when we are using Azure OpenAI
-      OPENAI_API_KEY: # LOAD IN?
+      
+      OPENAI_API_KEY: # We load this in with Coolify
       AUDIO_STT_ENGINE: openai  # ?
       AUDIO_TTS_ENGINE: openai  # ?
-      RAG_EMBEDDING_ENGINE: openai # TODO: 
-      # RAG_EMBEDDING_MODEL: text-embedding-3-large # TODO: you are going to use Azure OpenAI and preprocessed data
-      ENABLE_MODEL_FILTER: true
-      MODEL_FILTER_LIST: recode-electrophysiology
-      DEFAULT_MODELS: recode-electrophysiology
-      RESET_CONFIG_ON_START: false # ? 
       
-      WEBSOCKET_MANAGER: redis
-      WEBSOCKET_REDIS_URL: redis://redis:6379/0
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/recode-db
       DATABASE_POOL_SIZE: 10
       DATABASE_POOL_MAX_OVERFLOW: 20
       DATABASE_POOL_TIMEOUT: 30
-      # 'VECTOR_DB=qdrant'  # TODO: implement qdrant
+      
+      VECTOR_DB: qdrant
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      RAG_EMBEDDING_ENGINE: openai # TODO: 
+      RAG_EMBEDDING_MODEL: text-embedding-3-large # TODO: you are going to use Azure OpenAI and preprocessed data
+      
+      ENABLE_MODEL_FILTER: true
+      MODEL_FILTER_LIST: recode-electrophysiology
+      DEFAULT_MODELS: recode-electrophysiology
+      RESET_CONFIG_ON_START: true # Set to false in production
+      
+      WEBSOCKET_MANAGER: redis
+      WEBSOCKET_REDIS_URL: redis://redis:6379/0
+
     restart: unless-stopped
 
   postgres:
@@ -85,70 +96,14 @@ services:
       retries: 5
     restart: always
 
-  # TODO: maybe come back to milvus, or just use qdrant.
-  # milvus:
-  #   image: milvusdb/milvus:v2.4.12
-  #   container_name: milvus
-  #   command: ["milvus", "run", "standalone"]
-  #   environment:
-  #     MINIO_REGION: us-east-1
-  #     ETCD_ENDPOINTS: etcd:2379
-  #     MINIO_ADDRESS: minio:9000
-  #   volumes:
-  #     - milvus-data:/var/lib/milvus
-  #   depends_on:  # requires etcd and minio to run standalone in docker
-  #     etcd:
-  #       condition: service_healthy
-  #     minio:
-  #       condition: service_healthy
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "nc -z localhost 19530"]
-  #     interval: 1s
-  #     timeout: 10s
-  #     retries: 10
-
-  # etcd:
-  #   container_name: milvus-etcd
-  #   image: quay.io/coreos/etcd:v3.5.14
-  #   environment:
-  #     - ETCD_AUTO_COMPACTION_MODE=revision
-  #     - ETCD_AUTO_COMPACTION_RETENTION=1000
-  #     - ETCD_QUOTA_BACKEND_BYTES=4294967296
-  #     - ETCD_SNAPSHOT_COUNT=50000
-  #   volumes:
-  #     - etcd-data:/etcd
-  #   command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
-  #   healthcheck:
-  #     test: ["CMD", "etcdctl", "endpoint", "health"]
-  #     interval: 30s
-  #     timeout: 20s
-  #     retries: 3
-
-  # minio:
-  #   container_name: milvus-minio
-  #   image: minio/minio:RELEASE.2023-03-20T20-16-18Z
-  #   environment:
-  #     MINIO_ACCESS_KEY: minioadmin
-  #     MINIO_SECRET_KEY: minioadmin
-  #   # ports:
-  #   #   - "9001:9001"
-  #   #   - "9000:9000"
-  #   volumes:
-  #     - minio-data:/minio_data
-  #   command: minio server /minio_data --console-address ":9001"
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-  #     interval: 30s
-  #     timeout: 20s
-  #     retries: 3
-
-
+  qdrant:
+    image: qdrant/qdrant
+    container_name: qdrant
+    volumes:
+      - qdrant-data:/qdrant/storage
 
 volumes:
   open-webui: {}
   redis-data: {}
   postgres-data: {}
-  # milvus-data: {}
-  # etcd-data: {}
-  # minio-data: {}
+  qdrant-data: {}

@@ -6,21 +6,27 @@ services:
     container_name: open-webui
     volumes:
       - open-webui:/app/backend/data
+      - ./custom_start.sh:/app/backend/custom_start.sh:ro
+      - ./custom_start.py:/app/backend/custom_start.py:ro
+      - ./recode_knowledge:/app/backend/recode_knowledge:ro
+      - ./recode_electrophysiology_system_prompt.md:/app/backend/recode_electrophysiology_system_prompt.md:ro
+      - ./recode_tri_logo.jpg:/app/backend/recode_tri_logo.jpg:ro
+      - ./recode_models.json:/app/backend/recode_models.json:ro
       # Reference https://github.com/rndmcnlly/brace/blob/main/compose.yaml for the following:
-      # - ./recode_knowledge:/app/backend/recode_knowledge:ro
-      # - ./prompts.json:/app/backend/prompts.json:ro  # TODO: add predefined power-prompts like `/scenario`, `/proc`, etc based on common themes.
       # - ./logo.svg:/app/backend/logo.svg:ro # TODO: use for splash etc...; place favicon in frontend 
-      # - ./recode_system_prompt: /app/backend/recode_system_prompt:ro
+      # - ./prompts.json:/app/backend/prompts.json:ro  # TODO: add predefined power-prompts like `/scenario`, `/proc`, etc based on common themes.
       # - ./functions:/functions:ro  # TODO: create directory of functions
       # - ./functions.json:/app/backend/functions.json:ro # TODO: present functions in the UI
       # - mount admin config here and load it
-
+    entrypoint: ["bash", "/app/backend/custom_start.sh"]
     depends_on:
       redis:
         condition: service_healthy
       postgres:
         condition: service_healthy
       qdrant:
+        condition: service_started
+      tika:
         condition: service_started
     ports:
       - 8080:8080
@@ -43,7 +49,7 @@ services:
       ENABLE_OLLAMA_API: false
       ENABLE_OPENAI_API: true   # False? when we are using Azure OpenAI
       
-      OPENAI_API_KEY: # We load this in with Coolify
+      # OPENAI_API_KEY: # We load this in with Coolify
       AUDIO_STT_ENGINE: openai  # ?
       AUDIO_TTS_ENGINE: openai  # ?
       
@@ -68,6 +74,7 @@ services:
 
     restart: unless-stopped
 
+  # External Postgres database for all data storage and user management.
   postgres:
     image: postgres:17-alpine
     container_name: postgres
@@ -84,6 +91,7 @@ services:
       timeout: 5s
       retries: 10
 
+  # Redis for caching and websocket manager.
   redis:
     image: redis:alpine
     container_name: redis
@@ -96,11 +104,18 @@ services:
       retries: 5
     restart: always
 
+  # Vector database.
   qdrant:
     image: qdrant/qdrant
     container_name: qdrant
     volumes:
       - qdrant-data:/qdrant/storage
+
+  # Apache Tika for extracting text from files.
+  tika:
+    image: apache/tika:latest-full
+    container_name: apache-tika
+    restart: always
 
 volumes:
   open-webui: {}

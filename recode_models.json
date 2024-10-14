@@ -1,0 +1,54 @@
+[
+    {
+        "id": "recode-electrophysiology",
+        "name": "ReCODE Electrophysiology",
+        "object": "model",
+        "created": 1728850556,
+        "owned_by": "openai",
+        "info": {
+            "id": "recode-electrophysiology",
+            "user_id": "ReCODE",
+            "base_model_id": "chatgpt-4o-latest",
+            "name": "ReCODE Electrophysiology",
+            "params": {
+                "system": "@recode_electrophysiology_system_prompt.md",
+                "stream_response": true
+            },
+            "meta": {
+                "profile_image_url": "@recode_tri_logo.jpg",
+                "description": "Hi, I am ReCODE's Electrophysiology coding assistant.",
+                "capabilities": {
+                    "vision": true,
+                    "usage": false
+                },
+                "suggestion_prompts": [
+                    {"content": "What is the procedure code for SVC isolation?"},
+                    {"content": "How do I code a watchman with ablation?"},
+                    {"content": "Provide a hypothetical scenario for supraventricular tachycardia."},
+                    {"content": "What's the code for a CFAE ablation?"}
+                ],
+                "knowledge": [
+                    {
+                        "id": "<KNOWLEDGE_ID>",
+                        "name": "<KNOWLEDGE_NAME>",
+                        "description": "<KNOWLEDGE_DESCRIPTION>",
+                        "data": {
+                            "file_ids": [
+                                "<FILE_ID>"
+                            ]
+                        },
+                        "meta": null,
+                        "created_at": 1728849784,
+                        "updated_at": 1728849784,
+                        "type": "collection"
+                    }
+                ],
+                "position": 0
+            },
+            "updated_at": 1728850556,
+            "created_at": 1728850556
+        },
+        "preset": true,
+        "actions": []
+    }
+]

@@ -325,6 +325,7 @@ def get_rag_context(
             }
         else:
             context = None
+            print("FILE IN GET_RAG_CONTEXT", file)
 
             collection_names = []
             if file.get("type") == "collection":
@@ -392,7 +393,9 @@ def get_rag_context(
                     )
                 )
 
-                if "metadatas" in context:
+                if context["file"].get("name").startswith("RECODE_KNOWLEDGE_"):
+                    citations.append("RECODE_OVERRIDE")
+                elif "metadatas" in context:
                     citations.append(
                         {
                             "source": context["file"],

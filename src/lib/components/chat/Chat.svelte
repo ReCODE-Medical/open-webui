@@ -1451,7 +1451,8 @@
 						}
 
 						if (citations) {
-							responseMessage.citations = citations;
+							// Disable citations for now:
+							// responseMessage.citations = citations;
 							// Only remove status if it was initially set
 							if (model?.info?.meta?.knowledge ?? false) {
 								responseMessage.statusHistory = responseMessage.statusHistory.filter(

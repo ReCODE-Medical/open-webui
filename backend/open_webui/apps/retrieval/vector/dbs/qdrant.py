@@ -154,20 +154,30 @@ class QdrantClient:
         '''Insert items into the collection and create the collection if it doesn't exist'''
         log.info(f"Inserting {len(items)} items into collection: {collection_name}")
         collection_name = self._get_collection_name(collection_name)
+        
+        # Convert VectorItems to dicts
+        processed_items = []
+        for item in items:
+            if isinstance(item, VectorItem):
+                processed_items.append(item.model_dump())
+            else:
+                processed_items.append(item)
+        items = processed_items
+        
         if not self.has_collection(collection_name):
             self.client.create_collection(
                 collection_name=collection_name,
-                vectors_config=VectorParams(size=len(items[0]['vector']), distance=Distance.COSINE)
+                vectors_config=VectorParams(size=len(items[0]["vector"]), distance=Distance.COSINE)
             )
         
         # Create the points to insert.
-        points = [
-            models.PointStruct(
-                id=item['id'],
-                vector=item['vector'],
-                payload={'text': item['text'], 'metadata': item['metadata']}
-            ) for item in items
-        ]
+        points = []
+        for item in items:
+            points.append(models.PointStruct(
+                id=item["id"],
+                vector=item["vector"],
+                payload={'text': item["text"], 'metadata': item["metadata"]}
+            ))
 
         # Insert the points in batches.
         batch_size = 100

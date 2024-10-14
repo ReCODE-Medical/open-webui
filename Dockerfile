@@ -160,4 +160,5 @@ ARG BUILD_HASH
 ENV WEBUI_BUILD_VERSION=${BUILD_HASH}
 ENV DOCKER=true
 
-CMD [ "bash", "start.sh"]
+# Overriden by docker-compose "entrypoint" command if present.
+CMD [ "bash", "start.sh"]  

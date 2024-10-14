@@ -11,6 +11,12 @@
 }
 
 @font-face {
+	font-family: 'Bitter';
+	src: url('/assets/fonts/Bitter-VariableFont_wght.ttf');
+	font-display: swap;
+}
+
+@font-face {
 	font-family: 'Mona Sans';
 	src: url('/assets/fonts/Mona-Sans.woff2');
 	font-display: swap;
@@ -43,7 +49,8 @@ math {
 }
 
 .font-primary {
-	font-family: 'Archivo', sans-serif;
+	/* font-family: 'Archivo', sans-serif; */
+	font-family: 'Bitter', sans-serif;
 }
 
 iframe {

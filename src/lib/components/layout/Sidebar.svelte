@@ -500,7 +500,7 @@
 				</div>
 			{/if}
 
-			<div class="pl-2 my-2 flex-1 flex flex-col space-y-1 overflow-y-auto scrollbar-hidden">
+			<div class="pl-2 my-2 flex-1 flex flex-col space-y-1 overflow-y-auto scrollbar-hidden font-primary">
 				{#each filteredChatList as chat, idx}
 					{#if idx === 0 || (idx > 0 && chat.time_range !== filteredChatList[idx - 1].time_range)}
 						<div

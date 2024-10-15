@@ -14,9 +14,7 @@ log.setLevel(SRC_LOG_LEVELS["RAG"])
 class QdrantClient:
     def __init__(self):
         self.collection_prefix = "open_webui"
-        # TODO: go async for scalability
-        # self.client = AsyncQdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
-        self.client = SyncQdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
+        self.async_client = AsyncQdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
 
     def _convert_to_get_result(self, result: list[models.Record]) -> GetResult:
         ids = []
@@ -74,24 +72,24 @@ class QdrantClient:
         collection_name = collection_name.replace("-", "_")
         return f"{self.collection_prefix}_{collection_name}"
 
-    def has_collection(self, collection_name: str) -> bool:
+    async def has_collection(self, collection_name: str) -> bool:
         '''Check if the collection exists'''
         log.info(f"Checking if collection exists: {collection_name}")
         collection_name = self._get_collection_name(collection_name)
-        return self.client.collection_exists(collection_name=collection_name)
+        return await self.async_client.collection_exists(collection_name=collection_name)
 
-    def delete_collection(self, collection_name: str):
+    async def delete_collection(self, collection_name: str):
         '''Delete the collection'''
         log.info(f"Deleting collection: {collection_name}")
         collection_name = self._get_collection_name(collection_name)
-        return self.client.delete_collection(collection_name=collection_name)
+        return await self.async_client.delete_collection(collection_name=collection_name)
 
-    def search(self, collection_name: str, vectors: list[list[float]], limit: int) -> Optional[SearchResult]:
+    async def search(self, collection_name: str, vectors: list[list[float]], limit: int) -> Optional[SearchResult]:
         '''Search for the nearest neighbor items based on the vectors'''
         log.info(f"Searching for qdrant againt {len(vectors)} query vectors")
         
         # Check if the collection exists
-        if not self.has_collection(collection_name):
+        if not await self.has_collection(collection_name):
             log.info(f"Collection {collection_name} does not exist")
             return None
         
@@ -99,7 +97,7 @@ class QdrantClient:
         results = []
         
         for vector in vectors:
-            result = self.client.search(
+            result = await self.async_client.search(
                 collection_name=collection_name,
                 query_vector=vector,
                 limit=limit
@@ -109,7 +107,7 @@ class QdrantClient:
         log.info(f"Search results: {results}")
         return self._convert_to_search_result(results)
 
-    def query(self, collection_name: str, filter: dict[str, Any], limit: Optional[int] = None) -> Optional[GetResult]:
+    async def query(self, collection_name: str, filter: dict[str, Any], limit: Optional[int] = None) -> Optional[GetResult]:
         '''
         Query the items from the collection based on the filter
         To filter from a nested value like metadata, do `key="diet[].food"`.
@@ -117,7 +115,7 @@ class QdrantClient:
         log.info(f"Querying qdrant with filter: {filter}")
         
         # Check if the collection exists
-        if not self.has_collection(collection_name):
+        if not await self.has_collection(collection_name):
             log.info(f"Collection {collection_name} does not exist")
             return None
         
@@ -130,7 +128,7 @@ class QdrantClient:
                 ) for key, value in filter.items()
             ]
         )
-        result = self.client.scroll(
+        result = await self.async_client.scroll(
             collection_name=collection_name,
             scroll_filter=qdrant_filter,
             limit=limit or 10000  # Qdrant default limit
@@ -139,18 +137,18 @@ class QdrantClient:
         log.info(f"Query result: {result}")
         return self._convert_to_get_result(result[0])
 
-    def get(self, collection_name: str) -> Optional[GetResult]:
+    async def get(self, collection_name: str) -> Optional[GetResult]:
         '''Get all items from the collection'''
         log.info(f"Getting all items from collection: {collection_name}")
         collection_name = self._get_collection_name(collection_name)
-        result = self.client.scroll(
+        result = await self.async_client.scroll(
             collection_name=collection_name,
             limit=10000  # Adjust as needed
         )
         log.info(f"Got {len(result)} results")
         return self._convert_to_get_result(result[0])
 
-    def insert(self, collection_name: str, items: list[VectorItem]):
+    async def insert(self, collection_name: str, items: list[VectorItem]):
         '''Insert items into the collection and create the collection if it doesn't exist'''
         log.info(f"Inserting {len(items)} items into collection: {collection_name}")
         collection_name = self._get_collection_name(collection_name)
@@ -164,8 +162,8 @@ class QdrantClient:
                 processed_items.append(item)
         items = processed_items
         
-        if not self.has_collection(collection_name):
-            self.client.create_collection(
+        if not await self.has_collection(collection_name):
+            await self.async_client.create_collection(
                 collection_name=collection_name,
                 vectors_config=VectorParams(size=len(items[0]["vector"]), distance=Distance.COSINE)
             )
@@ -183,20 +181,20 @@ class QdrantClient:
         batch_size = 100
         for i in range(0, len(points), batch_size):
             batch = points[i:i+batch_size]
-            self.client.upsert(
+            await self.async_client.upsert(
                 collection_name=collection_name,
                 points=batch
             )
 
-    def upsert(self, collection_name: str, items: list[VectorItem]):
+    async def upsert(self, collection_name: str, items: list[VectorItem]):
         # In Qdrant, insert and upsert are the same operation
-        self.insert(collection_name, items)
+        await self.insert(collection_name, items)
 
-    def delete(self, collection_name: str, ids: Optional[list[str]] = None, filter: Optional[dict[str, Any]] = None):
+    async def delete(self, collection_name: str, ids: Optional[list[str]] = None, filter: Optional[dict[str, Any]] = None):
         log.info(f"Deleting items from collection: {collection_name}")
         collection_name = self._get_collection_name(collection_name)
         if ids:
-            self.client.delete(collection_name=collection_name, points_selector=models.PointIdsList(points=ids))
+            await self.async_client.delete(collection_name=collection_name, points_selector=models.PointIdsList(points=ids))
         elif filter:
             qdrant_filter = models.Filter(
                 must=[
@@ -206,12 +204,12 @@ class QdrantClient:
                     ) for key, value in filter.items()
                 ]
             )
-            self.client.delete(collection_name=collection_name, points_selector=models.FilterSelector(filter=qdrant_filter))
+            await self.async_client.delete(collection_name=collection_name, points_selector=models.FilterSelector(filter=qdrant_filter))
 
-    def reset(self):
+    async def reset(self):
         '''Delete all collections with the prefix'''
         log.info(f"Resetting all collections with prefix: {self.collection_prefix}")
-        collections = self.client.get_collections()
+        collections = await self.async_client.get_collections()
         for collection in collections.collections:
             if collection.name.startswith(self.collection_prefix):
-                self.client.delete_collection(collection_name=collection.name)
+                await self.async_client.delete_collection(collection_name=collection.name)

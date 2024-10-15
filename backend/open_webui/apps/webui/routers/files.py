@@ -34,7 +34,7 @@ router = APIRouter()
 
 
 @router.post("/")
-def upload_file(file: UploadFile = File(...), user=Depends(get_verified_user)):
+async def upload_file(file: UploadFile = File(...), user=Depends(get_verified_user)):
     log.info(f"file.content_type: {file.content_type}")
     try:
         unsanitized_filename = file.filename
@@ -68,7 +68,7 @@ def upload_file(file: UploadFile = File(...), user=Depends(get_verified_user)):
         )
 
         try:
-            process_file(ProcessFileForm(file_id=id))
+            await process_file(ProcessFileForm(file_id=id))
             file = Files.get_file_by_id(id=id)
         except Exception as e:
             log.exception(e)
@@ -194,7 +194,7 @@ async def update_file_data_content_by_id(
 
     if file and (file.user_id == user.id or user.role == "admin"):
         try:
-            process_file(ProcessFileForm(file_id=id, content=form_data.content))
+            await process_file(ProcessFileForm(file_id=id, content=form_data.content))
             file = Files.get_file_by_id(id=id)
         except Exception as e:
             log.exception(e)

@@ -36,13 +36,13 @@ class VectorSearchRetriever(BaseRetriever):
     embedding_function: Any
     top_k: int
 
-    def _get_relevant_documents(
+    async def _get_relevant_documents(
         self,
         query: str,
         *,
         run_manager: CallbackManagerForRetrieverRun,
     ) -> list[Document]:
-        result = VECTOR_DB_CLIENT.search(
+        result = await VECTOR_DB_CLIENT.search(
             collection_name=self.collection_name,
             vectors=[self.embedding_function(query)],
             limit=self.top_k,
@@ -63,13 +63,13 @@ class VectorSearchRetriever(BaseRetriever):
         return results
 
 
-def query_doc(
+async def query_doc(
     collection_name: str,
     query_embedding: list[float],
     k: int,
 ):
     try:
-        result = VECTOR_DB_CLIENT.search(
+        result = await VECTOR_DB_CLIENT.search(
             collection_name=collection_name,
             vectors=[query_embedding],
             limit=k,
@@ -82,7 +82,7 @@ def query_doc(
         raise e
 
 
-def query_doc_with_hybrid_search(
+async def query_doc_with_hybrid_search(
     collection_name: str,
     query: str,
     embedding_function,
@@ -91,7 +91,7 @@ def query_doc_with_hybrid_search(
     r: float,
 ) -> dict:
     try:
-        result = VECTOR_DB_CLIENT.get(collection_name=collection_name)
+        result = await VECTOR_DB_CLIENT.get(collection_name=collection_name)
 
         bm25_retriever = BM25Retriever.from_texts(
             texts=result.documents[0],
@@ -175,7 +175,7 @@ def merge_and_sort_query_results(
     return result
 
 
-def query_collection(
+async def query_collection(
     collection_names: list[str],
     query: str,
     embedding_function,
@@ -188,7 +188,7 @@ def query_collection(
     for collection_name in collection_names:
         if collection_name:
             try:
-                result = query_doc(
+                result = await query_doc(
                     collection_name=collection_name,
                     k=k,
                     query_embedding=query_embedding,
@@ -202,7 +202,7 @@ def query_collection(
     return merge_and_sort_query_results(results, k=k)
 
 
-def query_collection_with_hybrid_search(
+async def query_collection_with_hybrid_search(
     collection_names: list[str],
     query: str,
     embedding_function,
@@ -214,7 +214,7 @@ def query_collection_with_hybrid_search(
     error = False
     for collection_name in collection_names:
         try:
-            result = query_doc_with_hybrid_search(
+            result = await query_doc_with_hybrid_search(
                 collection_name=collection_name,
                 query=query,
                 embedding_function=embedding_function,
@@ -302,7 +302,7 @@ def get_embedding_function(
         return lambda query: generate_multiple(query, func)
 
 
-def get_rag_context(
+async def get_rag_context(
     files,
     messages,
     embedding_function,
@@ -353,7 +353,7 @@ def get_rag_context(
                 else:
                     if hybrid_search:
                         try:
-                            context = query_collection_with_hybrid_search(
+                            context = await query_collection_with_hybrid_search(
                                 collection_names=collection_names,
                                 query=query,
                                 embedding_function=embedding_function,
@@ -368,7 +368,7 @@ def get_rag_context(
                             )
 
                     if (not hybrid_search) or (context is None):
-                        context = query_collection(
+                        context = await query_collection(
                             collection_names=collection_names,
                             query=query,
                             embedding_function=embedding_function,

@@ -501,7 +501,7 @@ async def chat_completion_files_handler(body) -> tuple[dict, dict[str, list]]:
     citations = []
 
     if files := body.get("metadata", {}).get("files", None):
-        contexts, citations = get_rag_context(
+        contexts, citations = await get_rag_context(
             files=files,
             messages=body["messages"],
             embedding_function=retrieval_app.state.EMBEDDING_FUNCTION,

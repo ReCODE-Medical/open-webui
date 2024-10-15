@@ -137,7 +137,7 @@ class KnowledgeFileIdForm(BaseModel):
 
 
 @router.post("/{id}/file/add", response_model=Optional[KnowledgeFilesResponse])
-def add_file_to_knowledge_by_id(
+async def add_file_to_knowledge_by_id(
     id: str,
     form_data: KnowledgeFileIdForm,
     user=Depends(get_admin_user),
@@ -157,7 +157,7 @@ def add_file_to_knowledge_by_id(
 
     # Add content to the vector database
     try:
-        process_file(ProcessFileForm(file_id=form_data.file_id, collection_name=id))
+        await process_file(ProcessFileForm(file_id=form_data.file_id, collection_name=id))
     except Exception as e:
         log.debug(e)
         raise HTTPException(
@@ -202,7 +202,7 @@ def add_file_to_knowledge_by_id(
 
 
 @router.post("/{id}/file/update", response_model=Optional[KnowledgeFilesResponse])
-def update_file_from_knowledge_by_id(
+async def update_file_from_knowledge_by_id(
     id: str,
     form_data: KnowledgeFileIdForm,
     user=Depends(get_admin_user),
@@ -216,13 +216,13 @@ def update_file_from_knowledge_by_id(
         )
 
     # Remove content from the vector database
-    VECTOR_DB_CLIENT.delete(
+    await VECTOR_DB_CLIENT.delete(
         collection_name=knowledge.id, filter={"file_id": form_data.file_id}
     )
 
     # Add content to the vector database
     try:
-        process_file(ProcessFileForm(file_id=form_data.file_id, collection_name=id))
+        await process_file(ProcessFileForm(file_id=form_data.file_id, collection_name=id))
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -252,7 +252,7 @@ def update_file_from_knowledge_by_id(
 
 
 @router.post("/{id}/file/remove", response_model=Optional[KnowledgeFilesResponse])
-def remove_file_from_knowledge_by_id(
+async def remove_file_from_knowledge_by_id(
     id: str,
     form_data: KnowledgeFileIdForm,
     user=Depends(get_admin_user),
@@ -266,11 +266,11 @@ def remove_file_from_knowledge_by_id(
         )
 
     # Remove content from the vector database
-    VECTOR_DB_CLIENT.delete(
+    await VECTOR_DB_CLIENT.delete(
         collection_name=knowledge.id, filter={"file_id": form_data.file_id}
     )
 
-    result = VECTOR_DB_CLIENT.query(
+    result = await VECTOR_DB_CLIENT.query(
         collection_name=knowledge.id,
         filter={"file_id": form_data.file_id},
     )
@@ -321,7 +321,7 @@ def remove_file_from_knowledge_by_id(
 @router.post("/{id}/reset", response_model=Optional[KnowledgeResponse])
 async def reset_knowledge_by_id(id: str, user=Depends(get_admin_user)):
     try:
-        VECTOR_DB_CLIENT.delete_collection(collection_name=id)
+        await VECTOR_DB_CLIENT.delete_collection(collection_name=id)
     except Exception as e:
         log.debug(e)
         pass
@@ -340,7 +340,7 @@ async def reset_knowledge_by_id(id: str, user=Depends(get_admin_user)):
 @router.delete("/{id}/delete", response_model=bool)
 async def delete_knowledge_by_id(id: str, user=Depends(get_admin_user)):
     try:
-        VECTOR_DB_CLIENT.delete_collection(collection_name=id)
+        await VECTOR_DB_CLIENT.delete_collection(collection_name=id)
     except Exception as e:
         log.debug(e)
         pass

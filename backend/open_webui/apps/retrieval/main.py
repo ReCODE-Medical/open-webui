@@ -628,7 +628,7 @@ async def update_query_settings(
 ####################################
 
 
-def save_docs_to_vector_db(
+async def save_docs_to_vector_db(
     docs,
     collection_name,
     metadata: Optional[dict] = None,
@@ -640,7 +640,7 @@ def save_docs_to_vector_db(
 
     # Check if entries with the same hash (metadata.hash) already exist
     if metadata and "hash" in metadata:
-        result = VECTOR_DB_CLIENT.query(
+        result = await VECTOR_DB_CLIENT.query(
             collection_name=collection_name,
             filter={"hash": metadata["hash"]},
         )
@@ -673,11 +673,11 @@ def save_docs_to_vector_db(
                 metadata[key] = str(value)
 
     try:
-        if VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
+        if await VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
             log.info(f"collection {collection_name} already exists")
 
             if overwrite:
-                VECTOR_DB_CLIENT.delete_collection(collection_name=collection_name)
+                await VECTOR_DB_CLIENT.delete_collection(collection_name=collection_name)
                 log.info(f"deleting existing collection {collection_name}")
 
             if add is False:
@@ -707,7 +707,7 @@ def save_docs_to_vector_db(
             for idx, text in enumerate(texts)
         ]
 
-        VECTOR_DB_CLIENT.insert(
+        await VECTOR_DB_CLIENT.insert(
             collection_name=collection_name,
             items=items,
         )
@@ -725,7 +725,7 @@ class ProcessFileForm(BaseModel):
 
 
 @app.post("/process/file")
-def process_file(
+async def process_file(
     form_data: ProcessFileForm,
     user=Depends(get_verified_user),
 ):
@@ -741,7 +741,7 @@ def process_file(
             # Update the content in the file
             # Usage: /files/{file_id}/data/content/update
 
-            VECTOR_DB_CLIENT.delete(
+            await VECTOR_DB_CLIENT.delete(
                 collection_name=f"file-{file.id}",
                 filter={"file_id": file.id},
             )
@@ -763,7 +763,7 @@ def process_file(
             # Check if the file has already been processed and save the content
             # Usage: /knowledge/{id}/file/add, /knowledge/{id}/file/update
 
-            result = VECTOR_DB_CLIENT.query(
+            result = await VECTOR_DB_CLIENT.query(
                 collection_name=f"file-{file.id}", filter={"file_id": file.id}
             )
 
@@ -829,7 +829,7 @@ def process_file(
         Files.update_file_hash_by_id(file.id, hash)
 
         try:
-            result = save_docs_to_vector_db(
+            result = await save_docs_to_vector_db(
                 docs=docs,
                 collection_name=collection_name,
                 metadata={
@@ -877,7 +877,7 @@ class ProcessTextForm(BaseModel):
 
 
 @app.post("/process/text")
-def process_text(
+async def process_text(
     form_data: ProcessTextForm,
     user=Depends(get_verified_user),
 ):
@@ -894,7 +894,7 @@ def process_text(
     text_content = form_data.content
     log.debug(f"text_content: {text_content}")
 
-    result = save_docs_to_vector_db(docs, collection_name)
+    result = await save_docs_to_vector_db(docs, collection_name)
 
     if result:
         return {
@@ -910,7 +910,7 @@ def process_text(
 
 
 @app.post("/process/youtube")
-def process_youtube_video(form_data: ProcessUrlForm, user=Depends(get_verified_user)):
+async def process_youtube_video(form_data: ProcessUrlForm, user=Depends(get_verified_user)):
     try:
         collection_name = form_data.collection_name
         if not collection_name:
@@ -925,7 +925,7 @@ def process_youtube_video(form_data: ProcessUrlForm, user=Depends(get_verified_u
         docs = loader.load()
         content = " ".join([doc.page_content for doc in docs])
         log.debug(f"text_content: {content}")
-        save_docs_to_vector_db(docs, collection_name, overwrite=True)
+        await save_docs_to_vector_db(docs, collection_name, overwrite=True)
 
         return {
             "status": True,
@@ -949,7 +949,7 @@ def process_youtube_video(form_data: ProcessUrlForm, user=Depends(get_verified_u
 
 
 @app.post("/process/web")
-def process_web(form_data: ProcessUrlForm, user=Depends(get_verified_user)):
+async def process_web(form_data: ProcessUrlForm, user=Depends(get_verified_user)):
     try:
         collection_name = form_data.collection_name
         if not collection_name:
@@ -963,7 +963,7 @@ def process_web(form_data: ProcessUrlForm, user=Depends(get_verified_user)):
         docs = loader.load()
         content = " ".join([doc.page_content for doc in docs])
         log.debug(f"text_content: {content}")
-        save_docs_to_vector_db(docs, collection_name, overwrite=True)
+        await save_docs_to_vector_db(docs, collection_name, overwrite=True)
 
         return {
             "status": True,
@@ -1102,7 +1102,7 @@ def search_web(engine: str, query: str) -> list[SearchResult]:
 
 
 @app.post("/process/web/search")
-def process_web_search(form_data: SearchForm, user=Depends(get_verified_user)):
+async def process_web_search(form_data: SearchForm, user=Depends(get_verified_user)):
     try:
         logging.info(
             f"trying to web search with {app.state.config.RAG_WEB_SEARCH_ENGINE, form_data.query}"
@@ -1129,7 +1129,7 @@ def process_web_search(form_data: SearchForm, user=Depends(get_verified_user)):
         loader = get_web_loader(urls)
         docs = loader.load()
 
-        save_docs_to_vector_db(docs, collection_name, overwrite=True)
+        await save_docs_to_vector_db(docs, collection_name, overwrite=True)
 
         return {
             "status": True,
@@ -1153,13 +1153,13 @@ class QueryDocForm(BaseModel):
 
 
 @app.post("/query/doc")
-def query_doc_handler(
+async def query_doc_handler(
     form_data: QueryDocForm,
     user=Depends(get_verified_user),
 ):
     try:
         if app.state.config.ENABLE_RAG_HYBRID_SEARCH:
-            return query_doc_with_hybrid_search(
+            return await query_doc_with_hybrid_search(
                 collection_name=form_data.collection_name,
                 query=form_data.query,
                 embedding_function=app.state.EMBEDDING_FUNCTION,
@@ -1170,7 +1170,7 @@ def query_doc_handler(
                 ),
             )
         else:
-            return query_doc(
+            return await query_doc(
                 collection_name=form_data.collection_name,
                 query=form_data.query,
                 embedding_function=app.state.EMBEDDING_FUNCTION,
@@ -1193,13 +1193,13 @@ class QueryCollectionsForm(BaseModel):
 
 
 @app.post("/query/collection")
-def query_collection_handler(
+async def query_collection_handler(
     form_data: QueryCollectionsForm,
     user=Depends(get_verified_user),
 ):
     try:
         if app.state.config.ENABLE_RAG_HYBRID_SEARCH:
-            return query_collection_with_hybrid_search(
+            return await query_collection_with_hybrid_search(
                 collection_names=form_data.collection_names,
                 query=form_data.query,
                 embedding_function=app.state.EMBEDDING_FUNCTION,
@@ -1210,7 +1210,7 @@ def query_collection_handler(
                 ),
             )
         else:
-            return query_collection(
+            return await query_collection(
                 collection_names=form_data.collection_names,
                 query=form_data.query,
                 embedding_function=app.state.EMBEDDING_FUNCTION,
@@ -1238,13 +1238,13 @@ class DeleteForm(BaseModel):
 
 
 @app.post("/delete")
-def delete_entries_from_collection(form_data: DeleteForm, user=Depends(get_admin_user)):
+async def delete_entries_from_collection(form_data: DeleteForm, user=Depends(get_admin_user)):
     try:
-        if VECTOR_DB_CLIENT.has_collection(collection_name=form_data.collection_name):
+        if await VECTOR_DB_CLIENT.has_collection(collection_name=form_data.collection_name):
             file = Files.get_file_by_id(form_data.file_id)
             hash = file.hash
 
-            VECTOR_DB_CLIENT.delete(
+            await VECTOR_DB_CLIENT.delete(
                 collection_name=form_data.collection_name,
                 metadata={"hash": hash},
             )
@@ -1257,8 +1257,8 @@ def delete_entries_from_collection(form_data: DeleteForm, user=Depends(get_admin
 
 
 @app.post("/reset/db")
-def reset_vector_db(user=Depends(get_admin_user)):
-    VECTOR_DB_CLIENT.reset()
+async def reset_vector_db(user=Depends(get_admin_user)):
+    await VECTOR_DB_CLIENT.reset()
 
 
 @app.post("/reset/uploads")
@@ -1286,7 +1286,7 @@ def reset_upload_dir(user=Depends(get_admin_user)) -> bool:
 
 
 @app.post("/reset")
-def reset(user=Depends(get_admin_user)) -> bool:
+async def reset(user=Depends(get_admin_user)) -> bool:
     folder = f"{UPLOAD_DIR}"
     for filename in os.listdir(folder):
         file_path = os.path.join(folder, filename)
@@ -1299,7 +1299,7 @@ def reset(user=Depends(get_admin_user)) -> bool:
             log.error("Failed to delete %s. Reason: %s" % (file_path, e))
 
     try:
-        VECTOR_DB_CLIENT.reset()
+        await VECTOR_DB_CLIENT.reset()
     except Exception as e:
         log.exception(e)
 

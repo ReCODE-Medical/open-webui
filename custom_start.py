@@ -7,6 +7,7 @@ import json
 import uuid
 import base64
 import mimetypes
+import asyncio
 from pathlib import Path
 
 # By setting the secret key, we enable the population
@@ -51,26 +52,27 @@ RECODE_KNOWLEDGE_TO_MODEL_MAP = {
 ##################################
 qdrant_client = QdrantClient()
 
-def check_qdrant_contents():
-    collections = qdrant_client.client.get_collections().collections
+async def check_qdrant_contents():
+    collections = await qdrant_client.async_client.get_collections()
+    collections = collections.collections
     collection_num = len(collections)
     print(f"Number of Qdrant collections: {collection_num}")
 
     total_points = 0
     for collection in collections:
         collection_name = collection.name
-        collection_info = qdrant_client.client.get_collection(collection_name)
+        collection_info = await qdrant_client.async_client.get_collection(collection_name)
         points_count = collection_info.points_count
         print(f"Collection '{collection_name}': {points_count} points")
         total_points += points_count if points_count is not None else 0
     print(f"Total number of points across all collections: {total_points}")
     return collection_num, total_points
 
-def reset_qdrant():
+async def reset_qdrant():
     '''Reset the database; delete all collections.'''
-    check_qdrant_contents()
-    qdrant_client.reset()
-    num_collections, total_points = check_qdrant_contents()
+    await check_qdrant_contents()
+    await qdrant_client.reset()
+    num_collections, total_points = await check_qdrant_contents()
     assert num_collections == 0 and total_points == 0, "Qdrant database not reset."
 
 def get_unstructured_json_files(directory: str) -> list[Path]:
@@ -107,7 +109,7 @@ def convert_json_to_vector_item(json_data) -> list[VectorItem]:
         ))
     return items
 
-def create_collections(knowledges: list[KnowledgeResponse]) -> list[str]:
+async def create_collections(knowledges: list[KnowledgeResponse]) -> list[str]:
     '''
     Create collections from knowledge collections.
     
@@ -139,16 +141,16 @@ def create_collections(knowledges: list[KnowledgeResponse]) -> list[str]:
         # Create and insert into the collection.
         print(f"Creating collection: {qdrant_client._get_collection_name(collection_name)}")
         vec_items = convert_json_to_vector_item(loaded_file)
-        qdrant_client.insert(collection_name, vec_items)
-        assert qdrant_client.has_collection(collection_name)
+        await qdrant_client.insert(collection_name, vec_items)
+        assert await qdrant_client.has_collection(collection_name)
     
     return collection_names
 
-def refresh_qdrant_collections(knowledges: list[KnowledgeResponse]) -> list[str]:
+async def refresh_qdrant_collections(knowledges: list[KnowledgeResponse]) -> list[str]:
     '''Refresh Qdrant collections from knowledge collections.'''
-    reset_qdrant()
-    collection_names = create_collections(knowledges)
-    num_collections, total_points = check_qdrant_contents()
+    await reset_qdrant()
+    collection_names = await create_collections(knowledges)
+    num_collections, total_points = await check_qdrant_contents()
     assert num_collections == len(collection_names), "Qdrant collections not refreshed."
     assert total_points > 0, "Qdrant collections not refreshed."
     return collection_names
@@ -310,7 +312,7 @@ def refresh_knowledge_collections(recode_files: list[FileModel]) -> list[Knowled
 #   (File + Knowledge + Qdrant)
 #
 ##################################
-def recode_knowledge_preprocess(recode_knowledge_dir: str = "recode_knowledge"):
+async def recode_knowledge_preprocess(recode_knowledge_dir: str = "recode_knowledge"):
     json_files = get_unstructured_json_files(recode_knowledge_dir)
     print(f"JSON files:{json_files}")
 
@@ -326,7 +328,7 @@ def recode_knowledge_preprocess(recode_knowledge_dir: str = "recode_knowledge"):
 
     # Process the files into Qdrant collections.
     print("Refreshing Qdrant collections.")
-    collection_names = refresh_qdrant_collections(recode_knowledges)
+    collection_names = await refresh_qdrant_collections(recode_knowledges)
     print(f"ReCODE knowledge collections:{collection_names}")
 
     return recode_files, recode_knowledges, collection_names
@@ -389,8 +391,11 @@ def insert_models(models_data: list[dict]):
 # Main
 #
 ##################################
-if __name__ == "__main__":
+async def main():
     if VECTOR_DB == "qdrant":
-        recode_files, recode_knowledges, collection_names = recode_knowledge_preprocess()
+        recode_files, recode_knowledges, collection_names = await recode_knowledge_preprocess()
         models_data = create_recode_models_json(recode_knowledges)
         insert_models(models_data)
+
+if __name__ == "__main__":
+    asyncio.run(main())

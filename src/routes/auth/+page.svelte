@@ -167,10 +167,29 @@
 
 							{#if mode === 'signup'}
 								<div class=" mt-1 text-xs font-medium text-gray-500">
-									ⓘ {$WEBUI_NAME}
-									{$i18n.t(
-										'does not make any external connections, and your data stays securely on your locally hosted server.'
-									)}
+									ⓘ 
+									{$i18n.t('Visit ')}
+									<a
+										href="https://www.recodemedical.com"
+										target="_blank"
+										class="underline"
+									>
+										{$i18n.t('ReCODE Medical')}
+									</a>
+									{$i18n.t(' to register and manage subscriptions.')}
+								</div>
+							{:else}
+								<div class=" mt-1 text-xs font-medium text-gray-500">
+									ⓘ 
+									{$i18n.t('Visit ')}
+									<a
+										href="https://www.recodemedical.com"
+										target="_blank"
+										class="underline"
+									>
+										{$i18n.t('ReCODE Medical')}
+									</a>
+									{$i18n.t(' for account management.')}
 								</div>
 							{/if}
 						</div>
@@ -355,6 +374,7 @@
 <style>
 	.font-mona {
 		font-family:
+			'Bitter',
 			'Mona Sans',
 			-apple-system,
 			'Inter',

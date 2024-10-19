@@ -80,7 +80,7 @@
 
 		<hr class="my-2 border-gray-100 dark:border-gray-800" />
 
-		<Collapsible title={$i18n.t('Advanced Params')} open={true}>
+		<Collapsible title={$i18n.t('Advanced Params')} open={false}>
 			<div class="text-sm mt-1.5" slot="content">
 				<div>
 					<AdvancedParams admin={$user?.role === 'admin'} bind:params />

@@ -21,7 +21,7 @@
 	let titleAutoGenerate = true;
 	let responseAutoCopy = false;
 	let widescreenMode = false;
-	let splitLargeChunks = false;
+	let splitLargeChunks = true;
 	let scrollOnBranchChange = true;
 	let userLocation = false;
 

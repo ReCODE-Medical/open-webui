@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: open-webui
     volumes:
-      - open-webui:/app/backend/data
+      - ./recode_data/owui_data:/app/backend/data
       - ./custom_start.sh:/app/backend/custom_start.sh:ro
       - ./custom_start.py:/app/backend/custom_start.py:ro
       - ./recode_knowledge:/app/backend/recode_knowledge:ro
@@ -31,48 +31,49 @@ services:
     ports:
       - 8080:8080
     environment:
-      ENV: prod
-      WEBUI_NAME: ReCODE Chat
-      WEBUI_SECRET_KEY: 
+      ENV: ${ENV}
+      WEBUI_NAME: ${WEBUI_NAME}
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
+  
+      ENABLE_SIGNUP: ${ENABLE_SIGNUP}
+      ENABLE_OAUTH_SIGNUP: ${ENABLE_OAUTH_SIGNUP}
+      ENABLE_LOGIN_FORM: ${ENABLE_LOGIN_FORM}
+      # OPENID_PROVIDER_URL: ${OPENID_PROVIDER_URL}
+      # OPENID_REDIRECT_URI: ${OPENID_REDIRECT_URI}
       
-      ENABLE_SIGNUP: true         # TODO: false
-      ENABLE_OAUTH_SIGNUP: false  # TODO: true
-      ENABLE_LOGIN_FORM: true     # TODO: false
-      # OPENID_PROVIDER_URL:      # TODO: add openid provider of OAuth
+      DEFAULT_USER_ROLE: ${DEFAULT_USER_ROLE}
+      USER_PERMISSIONS_CHAT_DELETION: ${USER_PERMISSIONS_CHAT_DELETION}
+      USER_PERMISSIONS_CHAT_EDITING: ${USER_PERMISSIONS_CHAT_EDITING}
+      USER_PERMISSIONS_CHAT_TEMPORARY: ${USER_PERMISSIONS_CHAT_TEMPORARY}
+      ENABLE_MESSAGE_RATING: ${ENABLE_MESSAGE_RATING}
+      ENABLE_COMMUNITY_SHARING: ${ENABLE_COMMUNITY_SHARING}
+      ENABLE_OLLAMA_API: ${ENABLE_OLLAMA_API}
+      ENABLE_OPENAI_API: ${ENABLE_OPENAI_API}
       
-      DEFAULT_USER_ROLE: user     # TODO: pending ? admin ?
-      USER_PERMISSIONS_CHAT_DELETION: false
-      USER_PERMISSIONS_CHAT_EDITING: false
-      USER_PERMISSIONS_CHAT_TEMPORARY: false
-      ENABLE_MESSAGE_RATING: true
-      ENABLE_COMMUNITY_SHARING: false # TODO: true?
-      ENABLE_OLLAMA_API: false
-      ENABLE_OPENAI_API: true   # False? when we are using Azure OpenAI
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      AUDIO_STT_ENGINE: ${AUDIO_STT_ENGINE}
+      AUDIO_TTS_ENGINE: ${AUDIO_TTS_ENGINE}
       
-      # OPENAI_API_KEY: # We load this in with Coolify
-      AUDIO_STT_ENGINE: openai  # ?
-      AUDIO_TTS_ENGINE: openai  # ?
-      
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/recode-db
-      DATABASE_POOL_SIZE: 10
-      DATABASE_POOL_MAX_OVERFLOW: 20
-      DATABASE_POOL_TIMEOUT: 30
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE}
+      DATABASE_POOL_MAX_OVERFLOW: ${DATABASE_POOL_MAX_OVERFLOW}
+      DATABASE_POOL_TIMEOUT: ${DATABASE_POOL_TIMEOUT}
 
-      CONTENT_EXTRACTION_ENGINE: tika
+      CONTENT_EXTRACTION_ENGINE: ${CONTENT_EXTRACTION_ENGINE}
       
-      VECTOR_DB: qdrant
-      QDRANT_HOST: qdrant
-      QDRANT_PORT: 6333
-      RAG_EMBEDDING_ENGINE: openai # TODO: 
-      RAG_EMBEDDING_MODEL: text-embedding-3-large # TODO: you are going to use Azure OpenAI and preprocessed data
+      VECTOR_DB: ${VECTOR_DB}
+      QDRANT_HOST: ${QDRANT_HOST}
+      QDRANT_PORT: ${QDRANT_PORT}
+      RAG_EMBEDDING_ENGINE: ${RAG_EMBEDDING_ENGINE} 
+      RAG_EMBEDDING_MODEL: ${RAG_EMBEDDING_MODEL}
       
-      ENABLE_MODEL_FILTER: true
-      MODEL_FILTER_LIST: recode-electrophysiology
-      DEFAULT_MODELS: recode-electrophysiology
-      RESET_CONFIG_ON_START: true # Set to false in production
+      ENABLE_MODEL_FILTER: ${ENABLE_MODEL_FILTER}
+      MODEL_FILTER_LIST: ${MODEL_FILTER_LIST}
+      DEFAULT_MODELS: ${DEFAULT_MODELS}
+      RESET_CONFIG_ON_START: ${RESET_CONFIG_ON_START}
       
-      WEBSOCKET_MANAGER: redis
-      WEBSOCKET_REDIS_URL: redis://redis:6379/0
+      WEBSOCKET_MANAGER: ${WEBSOCKET_MANAGER}
+      WEBSOCKET_REDIS_URL: ${WEBSOCKET_REDIS_URL}
 
     restart: unless-stopped
 
@@ -82,16 +83,33 @@ services:
     container_name: postgres
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: recode-db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - postgres-data:/var/lib/postgresql/data  # TODO: map to external dir so data is not lost and more space is available
+      - ./recode_data/postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d recode-db"]
       interval: 1s
       timeout: 5s
       retries: 10
+
+  # Postgres Admin Dashboard.
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: ${PGADMIN_CONFIG_SERVER_MODE}
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: ${PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED}
+    ports:
+      - 5050:80
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      - postgres
 
   # Redis for caching and websocket manager.
   redis:
@@ -120,7 +138,6 @@ services:
     restart: always
 
 volumes:
-  open-webui: {}
   redis-data: {}
-  postgres-data: {}  # TODO: map to external dir so data is not lost and more space is available
   qdrant-data: {}
+  pgadmin-data: {}

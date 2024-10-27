@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: open-webui
     volumes:
-      - ${RECODE_OWUI_DATA_DIR}:/app/backend/data
+      - open-webui:/app/backend/data
       - ./custom_start.sh:/app/backend/custom_start.sh:ro
       - ./custom_start.py:/app/backend/custom_start.py:ro
       - ./recode_knowledge:/app/backend/recode_knowledge:ro
@@ -31,49 +31,50 @@ services:
     ports:
       - 8080:8080
     environment:
-      ENV: ${ENV}
-      WEBUI_NAME: ${WEBUI_NAME}
-      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
-  
-      ENABLE_SIGNUP: ${ENABLE_SIGNUP}
-      ENABLE_OAUTH_SIGNUP: ${ENABLE_OAUTH_SIGNUP}
-      ENABLE_LOGIN_FORM: ${ENABLE_LOGIN_FORM}
-      # OPENID_PROVIDER_URL: ${OPENID_PROVIDER_URL}
-      # OPENID_REDIRECT_URI: ${OPENID_REDIRECT_URI}
+      ENV: prod
+      WEBUI_NAME: ReCODE Chat
+      WEBUI_SECRET_KEY: 
       
-      DEFAULT_USER_ROLE: ${DEFAULT_USER_ROLE}
-      USER_PERMISSIONS_CHAT_DELETION: ${USER_PERMISSIONS_CHAT_DELETION}
-      USER_PERMISSIONS_CHAT_EDITING: ${USER_PERMISSIONS_CHAT_EDITING}
-      USER_PERMISSIONS_CHAT_TEMPORARY: ${USER_PERMISSIONS_CHAT_TEMPORARY}
-      ENABLE_MESSAGE_RATING: ${ENABLE_MESSAGE_RATING}
-      ENABLE_COMMUNITY_SHARING: ${ENABLE_COMMUNITY_SHARING}
-      ENABLE_OLLAMA_API: ${ENABLE_OLLAMA_API}
-      ENABLE_OPENAI_API: ${ENABLE_OPENAI_API}
+      ENABLE_SIGNUP: true
+      ENABLE_OAUTH_SIGNUP: false
+      ENABLE_LOGIN_FORM: true
+      # OPENID_PROVIDER_URL:
+      # OPENID_REDIRECT_URI:
       
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      AUDIO_STT_ENGINE: ${AUDIO_STT_ENGINE}
-      AUDIO_TTS_ENGINE: ${AUDIO_TTS_ENGINE}
+      DEFAULT_USER_ROLE: user
+      USER_PERMISSIONS_CHAT_DELETION: false
+      USER_PERMISSIONS_CHAT_EDITING: false
+      USER_PERMISSIONS_CHAT_TEMPORARY: false
+      ENABLE_MESSAGE_RATING: true
+      ENABLE_COMMUNITY_SHARING: false
+      ENABLE_OLLAMA_API: false
+      ENABLE_OPENAI_API: true
       
-      DATABASE_URL: ${DATABASE_URL}
-      DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE}
-      DATABASE_POOL_MAX_OVERFLOW: ${DATABASE_POOL_MAX_OVERFLOW}
-      DATABASE_POOL_TIMEOUT: ${DATABASE_POOL_TIMEOUT}
+      OPENAI_API_KEY: ${RECODE_OPENAI_API_KEY}
+      AUDIO_STT_ENGINE: openai
+      AUDIO_TTS_ENGINE: openai
+      
+      DATABASE_URL: ${RECODE_DATABASE_URI}
+      DATABASE_POOL_SIZE: 10
+      DATABASE_POOL_MAX_OVERFLOW: 20
+      DATABASE_POOL_TIMEOUT: 30
 
-      CONTENT_EXTRACTION_ENGINE: ${CONTENT_EXTRACTION_ENGINE}
+      CONTENT_EXTRACTION_ENGINE: tika
       
-      VECTOR_DB: ${VECTOR_DB}
-      QDRANT_HOST: ${QDRANT_HOST}
-      QDRANT_PORT: ${QDRANT_PORT}
-      RAG_EMBEDDING_ENGINE: ${RAG_EMBEDDING_ENGINE} 
-      RAG_EMBEDDING_MODEL: ${RAG_EMBEDDING_MODEL}
+      VECTOR_DB: qdrant
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      RAG_EMBEDDING_ENGINE: openai
+      RAG_EMBEDDING_MODEL: text-embedding-3-large
+      RAG_EMBEDDING_OPENAI_BATCH_SIZE: 2048
       
-      ENABLE_MODEL_FILTER: ${ENABLE_MODEL_FILTER}
-      MODEL_FILTER_LIST: ${MODEL_FILTER_LIST}
-      DEFAULT_MODELS: ${DEFAULT_MODELS}
-      RESET_CONFIG_ON_START: ${RESET_CONFIG_ON_START}
+      ENABLE_MODEL_FILTER: true
+      MODEL_FILTER_LIST: recode-electrophysiology
+      DEFAULT_MODELS: recode-electrophysiology
+      RESET_CONFIG_ON_START: true
       
-      WEBSOCKET_MANAGER: ${WEBSOCKET_MANAGER}
-      WEBSOCKET_REDIS_URL: ${WEBSOCKET_REDIS_URL}
+      WEBSOCKET_MANAGER: redis
+      WEBSOCKET_REDIS_URL: redis://redis:6379/0
 
     restart: unless-stopped
 
@@ -83,11 +84,11 @@ services:
     container_name: postgres
     restart: always
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${RECODE_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${RECODE_POSTGRES_PASSWORD}
+      POSTGRES_DB: recode-db
     volumes:
-      - ${RECODE_POSTGRES_DATA_DIR}:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data  # TODO: map to external dir so data is not lost and more space is available
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d recode-db"]
       interval: 1s
@@ -100,10 +101,10 @@ services:
     container_name: pgadmin
     restart: always
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
-      PGADMIN_CONFIG_SERVER_MODE: ${PGADMIN_CONFIG_SERVER_MODE}
-      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: ${PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED}
+      PGADMIN_DEFAULT_EMAIL: ${RECODE_PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${RECODE_PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: "True"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "True"
     ports:
       - 5050:80
     volumes:
@@ -138,6 +139,8 @@ services:
     restart: always
 
 volumes:
+  open-webui: {}
   redis-data: {}
-  qdrant-data: {}
+  postgres-data: {}
   pgadmin-data: {}
+  qdrant-data: {}

@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: open-webui
     volumes:
-      - ./recode_data/owui_data:/app/backend/data
+      - ${RECODE_OWUI_DATA_DIR}:/app/backend/data
       - ./custom_start.sh:/app/backend/custom_start.sh:ro
       - ./custom_start.py:/app/backend/custom_start.py:ro
       - ./recode_knowledge:/app/backend/recode_knowledge:ro
@@ -87,7 +87,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - ./recode_data/postgres_data:/var/lib/postgresql/data
+      - ${RECODE_POSTGRES_DATA_DIR}:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d recode-db"]
       interval: 1s

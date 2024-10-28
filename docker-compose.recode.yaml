@@ -78,7 +78,7 @@ services:
       ENABLE_MODEL_FILTER: true
       MODEL_FILTER_LIST: recode-electrophysiology-openai
       DEFAULT_MODELS: recode-electrophysiology-openai
-      RESET_CONFIG_ON_START: true
+      RESET_CONFIG_ON_START: false
       
       WEBSOCKET_MANAGER: redis
       WEBSOCKET_REDIS_URL: redis://redis:6379/0

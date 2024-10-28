@@ -35,20 +35,20 @@ services:
       WEBUI_NAME: ReCODE Chat
       WEBUI_SECRET_KEY: 
       
-      ENABLE_SIGNUP: true
-      ENABLE_OAUTH_SIGNUP: false
-      ENABLE_LOGIN_FORM: true
+      ENABLE_SIGNUP: True
+      ENABLE_OAUTH_SIGNUP: False
+      ENABLE_LOGIN_FORM: True
       # OPENID_PROVIDER_URL:
       # OPENID_REDIRECT_URI:
       
       DEFAULT_USER_ROLE: user
-      USER_PERMISSIONS_CHAT_DELETION: false
-      USER_PERMISSIONS_CHAT_EDITING: false
-      USER_PERMISSIONS_CHAT_TEMPORARY: false
-      ENABLE_MESSAGE_RATING: true
-      ENABLE_COMMUNITY_SHARING: false
-      ENABLE_OLLAMA_API: false
-      ENABLE_OPENAI_API: true
+      USER_PERMISSIONS_CHAT_DELETION: False
+      USER_PERMISSIONS_CHAT_EDITING: False
+      USER_PERMISSIONS_CHAT_TEMPORARY: False
+      ENABLE_MESSAGE_RATING: True
+      ENABLE_COMMUNITY_SHARING: False
+      ENABLE_OLLAMA_API: False
+      ENABLE_OPENAI_API: True
       
       OPENAI_API_KEY: ${RECODE_OPENAI_API_KEY}
       RAG_OPENAI_API_KEY: ${RECODE_OPENAI_API_KEY}
@@ -75,10 +75,10 @@ services:
       RAG_EMBEDDING_MODEL: text-embedding-3-large
       RAG_EMBEDDING_OPENAI_BATCH_SIZE: 2048
       
-      ENABLE_MODEL_FILTER: true
+      ENABLE_MODEL_FILTER: True
       MODEL_FILTER_LIST: recode-electrophysiology-openai
       DEFAULT_MODELS: recode-electrophysiology-openai
-      RESET_CONFIG_ON_START: false
+      RESET_CONFIG_ON_START: False
       
       WEBSOCKET_MANAGER: redis
       WEBSOCKET_REDIS_URL: redis://redis:6379/0

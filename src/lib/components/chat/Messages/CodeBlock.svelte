@@ -315,7 +315,7 @@ __builtins__.input = input`);
 				class="sticky top-8 mb-1 py-1 pr-2.5 flex items-center justify-end z-10 text-xs text-black dark:text-white"
 			>
 				<div class="flex items-center gap-0.5 translate-y-[1px]">
-					{#if lang.toLowerCase() === 'python' || lang.toLowerCase() === 'py' || (lang === '' && checkPythonCode(code))}
+					<!-- {#if lang.toLowerCase() === 'python' || lang.toLowerCase() === 'py' || (lang === '' && checkPythonCode(code))}
 						{#if executing}
 							<div class="run-code-button bg-none border-none p-1 cursor-not-allowed">Running</div>
 						{:else}
@@ -328,7 +328,7 @@ __builtins__.input = input`);
 								}}>{$i18n.t('Run')}</button
 							>
 						{/if}
-					{/if}
+					{/if} -->
 
 					{#if save}
 						<button

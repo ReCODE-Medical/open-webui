@@ -59,8 +59,6 @@ class QdrantClient:
             documents.append(_documents)
             metadatas.append(_metadatas)
 
-        log.info(f"Search result: ids={ids[:5]}..., distances={distances[:5]}..., documents={documents[:5]}..., metadatas={metadatas[:5]}...")
-
         return SearchResult(
             ids=ids,
             distances=distances,
@@ -103,8 +101,6 @@ class QdrantClient:
                 limit=limit
             )
             results.append(result)
-
-        log.info(f"Search results: {results}")
         return self._convert_to_search_result(results)
 
     async def query(self, collection_name: str, filter: dict[str, Any], limit: Optional[int] = None) -> Optional[GetResult]:

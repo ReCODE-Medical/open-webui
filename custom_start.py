@@ -20,15 +20,22 @@ from open_webui.apps.retrieval.vector.dbs.qdrant import QdrantClient
 from open_webui.apps.webui.models.knowledge import Knowledges, KnowledgeResponse, KnowledgeForm, KnowledgeUpdateForm
 from open_webui.apps.webui.models.models import Models, ModelForm
 from open_webui.apps.webui.models.files import Files, FileForm, FileModel
+from open_webui.apps.webui.models.prompts import Prompts, PromptForm
+from open_webui.apps.webui.models.functions import Functions, FunctionForm
 from open_webui.utils.misc import calculate_sha256_string
 
 RECODE_USER_ID = "ReCODE"
 RECODE_FILENAME_PREFIX = "RECODE_FILE_"
-RECODE_KNOWLEDGE_PREFIX = "RECODE_KNOWLEDGE_"  # CTRL f before changing this, 
+RECODE_KNOWLEDGE_PREFIX = "RECODE_KNOWLEDGE_"  # CTRL f before changing this
+RECODE_PROMPTS_JSON_FILE = "recode_prompts.json"
 RECODE_MODELS_JSON_FILE = "recode_models.json"
+RECODE_FUNCTIONS_JSON_FILE = "recode_functions.json"
 
 RECODE_KNOWLEDGE_TO_MODEL_MAP = {
-    "RECODE_KNOWLEDGE_diagnostic_and_therapeutic_electrophysiology_studies": "recode-electrophysiology",
+    "RECODE_KNOWLEDGE_diagnostic_and_therapeutic_electrophysiology_studies": [
+        "recode-electrophysiology-openai",
+        "recode-electrophysiology-azure"
+    ],
 }
 
 ##################################
@@ -36,14 +43,44 @@ RECODE_KNOWLEDGE_TO_MODEL_MAP = {
 # Import Prompts
 #
 ##################################
-# TODO
+with open(RECODE_PROMPTS_JSON_FILE) as f:
+    prompt_specifications = json.load(f)
+    for spec in prompt_specifications:
+        form_data = PromptForm(**spec)
+        if prompt := Prompts.get_prompt_by_command(form_data.command):
+            print(f"Updating prompt: {form_data.command}")
+            Prompts.update_prompt_by_command(form_data.command, form_data)
+        else:
+            print(f"Inserting prompt: {form_data.command}")
+            Prompts.insert_new_prompt(spec["user_id"], form_data)
 
 ##################################
 #
 # Import Functions
 #
 ##################################
-# TODO
+with open(RECODE_FUNCTIONS_JSON_FILE) as f:
+    functions_specifications = json.load(f)
+    for spec in functions_specifications:
+       
+       # Grab content from the function file and insert it into the spec.
+        src_function_path = os.path.join("/functions", f"{spec['id']}.py")
+        with open(src_function_path, "r") as f:
+            spec['content'] = f.read()
+        
+        # Insert the function.
+        form_data = FunctionForm(**spec)
+        if function := Functions.get_function_by_id(form_data.id):
+            print(f"Updating function: {form_data.id}")
+            Functions.update_function_by_id(form_data.id, form_data)
+        else:
+            print(f"Inserting function: {form_data.id}")
+            Functions.insert_new_function("custom-start", spec["type"], form_data)
+        Functions.update_function_by_id(form_data.id, {
+            "is_active": spec["is_active"],
+            "is_global": spec["is_global"]
+        })
+
 
 ##################################
 #
@@ -345,15 +382,16 @@ def create_recode_models_json(recode_knowledges: list[KnowledgeResponse]) -> lis
     with open(RECODE_MODELS_JSON_FILE, "r") as f: 
         models_data = json.load(f)
     
-    # For each knowledge, insert the corresponding model if it is in the mapping.
+    # For each knowledge, insert the corresponding models if they are in the mapping.
     for knowledge in recode_knowledges:
         if knowledge.name in RECODE_KNOWLEDGE_TO_MODEL_MAP:
-            model_name = RECODE_KNOWLEDGE_TO_MODEL_MAP[knowledge.name]
+            model_names = RECODE_KNOWLEDGE_TO_MODEL_MAP[knowledge.name]
 
-            for model in models_data:
-                if model["id"] == model_name:
-                    model["info"]["meta"]["knowledge"] = [knowledge.model_dump()]
-                    break
+            for model_name in model_names:
+                for model in models_data:
+                    if model["id"] == model_name:
+                        model["info"]["meta"]["knowledge"] = [knowledge.model_dump()]
+                        break
     
     print(f"ReCODE models updated: {models_data}")
     return models_data

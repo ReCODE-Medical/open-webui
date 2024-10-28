@@ -75,7 +75,8 @@ async def query_doc(
             limit=k,
         )
 
-        log.info(f"query_doc:result {result}")
+        documents = result.documents
+        log.info(f"query_doc:result {documents}")
         return result
     except Exception as e:
         print(e)

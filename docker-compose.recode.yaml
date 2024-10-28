@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: open-webui
     volumes:
+      # Reference https://github.com/rndmcnlly/brace/blob/main/compose.yaml for the following:
       - open-webui:/app/backend/data
       - ./custom_start.sh:/app/backend/custom_start.sh:ro
       - ./custom_start.py:/app/backend/custom_start.py:ro
@@ -12,12 +13,11 @@ services:
       - ./recode_electrophysiology_system_prompt.md:/app/backend/recode_electrophysiology_system_prompt.md:ro
       - ./recode_tri_logo.jpg:/app/backend/recode_tri_logo.jpg:ro
       - ./recode_models.json:/app/backend/recode_models.json:ro
-      # Reference https://github.com/rndmcnlly/brace/blob/main/compose.yaml for the following:
-      # - ./logo.svg:/app/backend/logo.svg:ro # TODO: use for splash etc...; place favicon in frontend 
-      # - ./prompts.json:/app/backend/prompts.json:ro  # TODO: add predefined power-prompts like `/scenario`, `/proc`, etc based on common themes.
-      # - ./functions:/functions:ro  # TODO: create directory of functions
-      # - ./functions.json:/app/backend/functions.json:ro # TODO: present functions in the UI
-      # - mount admin config here and load it
+      - ./recode_prompts.json:/app/backend/recode_prompts.json:ro
+      - ./recode_functions.json:/app/backend/recode_functions.json:ro
+      - ./recode_functions:/functions:ro
+      - ./recode_config.json:/app/backend/data/config.json
+
     entrypoint: ["bash", "/app/backend/custom_start.sh"]
     depends_on:
       redis:
@@ -51,6 +51,13 @@ services:
       ENABLE_OPENAI_API: true
       
       OPENAI_API_KEY: ${RECODE_OPENAI_API_KEY}
+      RAG_OPENAI_API_KEY: ${RECODE_OPENAI_API_KEY}
+      AUDIO_STT_OPENAI_API_KEY: ${RECODE_OPENAI_API_KEY}
+      AUDIO_TTS_OPENAI_API_KEY: ${RECODE_OPENAI_API_KEY}
+      AZURE_OPENAI_API_KEY_GPT: ${RECODE_AZURE_OPENAI_API_KEY_GPT}
+      AZURE_OPENAI_ENDPOINT_GPT: ${RECODE_AZURE_OPENAI_ENDPOINT_GPT}
+      AZURE_OPENAI_DEPLOYMENT_NAME_GPT: ${RECODE_AZURE_OPENAI_DEPLOYMENT_NAME_GPT}
+      AZURE_OPENAI_API_VERSION_GPT: ${RECODE_AZURE_OPENAI_API_VERSION_GPT}
       AUDIO_STT_ENGINE: openai
       AUDIO_TTS_ENGINE: openai
       
@@ -69,8 +76,8 @@ services:
       RAG_EMBEDDING_OPENAI_BATCH_SIZE: 2048
       
       ENABLE_MODEL_FILTER: true
-      MODEL_FILTER_LIST: recode-electrophysiology
-      DEFAULT_MODELS: recode-electrophysiology
+      MODEL_FILTER_LIST: recode-electrophysiology-openai
+      DEFAULT_MODELS: recode-electrophysiology-openai
       RESET_CONFIG_ON_START: true
       
       WEBSOCKET_MANAGER: redis

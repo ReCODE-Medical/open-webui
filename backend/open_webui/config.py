@@ -97,7 +97,7 @@ def reset_config():
 if os.path.exists(f"{DATA_DIR}/config.json"):
     data = load_json_config()
     save_to_db(data)
-    os.rename(f"{DATA_DIR}/config.json", f"{DATA_DIR}/old_config.json")
+    # os.rename(f"{DATA_DIR}/config.json", f"{DATA_DIR}/old_config.json")
 
 DEFAULT_CONFIG = {
     "version": 0,

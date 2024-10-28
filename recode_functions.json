@@ -1,0 +1,15 @@
+[
+    {
+        "id": "recode-electrophysiology-azure",
+        "user_id": "166572b2-ec88-45ef-b5a5-bcb4cb424809",
+        "name": "ReCODE EP Azure OpenAI Pipe",
+        "type": "pipe",
+        "meta": {
+            "description": "A pipe to connect ReCODE EP to Azure OpenAI."
+        },
+        "is_active": true,
+        "is_global": false,
+        "updated_at": 1730074516,
+        "created_at": 1730074195
+    }
+]

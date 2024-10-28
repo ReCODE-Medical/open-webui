@@ -1,0 +1,44 @@
+[
+    {
+        "command": "/indications",
+        "user_id": "166572b2-ec88-45ef-b5a5-bcb4cb424809",
+        "title": "indications",
+        "content": "What are the clinical indications for [condition or procedure code]? ",
+        "timestamp": 1730068125
+    },
+    {
+        "command": "/imaginary-note",
+        "user_id": "166572b2-ec88-45ef-b5a5-bcb4cb424809",
+        "title": "imaginary-note",
+        "content": "Please generate a hypothetical procedure note that is accurate and plausible for procedure code [code]. Be sure to specify the clinical indications, and coding nuances. Explain your thinking aloud as justification for your decisions.",
+        "timestamp": 1730070547
+    },
+    {
+        "command": "/note-code-predict",
+        "user_id": "166572b2-ec88-45ef-b5a5-bcb4cb424809",
+        "title": "note-code-predict",
+        "content": "Attached to this prompt, I have provided a clinical note. Based on this, predict the correct procedure codes that document this procedure. Be sure to explain your thinking aloud as justification for your answer. ",
+        "timestamp": 1730071113
+    },
+    {
+        "command": "/note-code-verify",
+        "user_id": "166572b2-ec88-45ef-b5a5-bcb4cb424809",
+        "title": "note-code-verify",
+        "content": "Attached to this prompt, I have provided a clinical note. Based on this, does it appear to fulfill the documentation criteria for these codes: [codes]? Verify why or why not. Be sure to explain your thinking aloud as justification for your answer.",
+        "timestamp": 1730071157
+    },
+    {
+        "command": "/imaginary-scenario",
+        "user_id": "166572b2-ec88-45ef-b5a5-bcb4cb424809",
+        "title": "imaginary-scenario",
+        "content": "Provide me an imaginary example coding scenario for [condition or code]. Make sure to clarify any coding nuances, that I must keep in mind. Be sure to explain your thinking aloud as justification for your answer.",
+        "timestamp": 1730071192
+    },
+    {
+        "command": "/code",
+        "user_id": "166572b2-ec88-45ef-b5a5-bcb4cb424809",
+        "title": "code",
+        "content": "Tell me about PROC CODE [procedure code]. Explain the medical conditions and indications associated with it thoroughly but concisely, explain the coding instructions, and make sure to articulate any coding nuances that I should keep in mind. Provide an example scenario under which this code would be applied. Be sure to explain your thinking aloud as justification for your response.",
+        "timestamp": 1730071314
+    }
+]

@@ -1,6 +1,7 @@
 {
     "version": 0,
     "ui": {
+        "enable_community_sharing": false,
         "default_locale": "",
         "prompt_suggestions": [
             {
@@ -104,5 +105,8 @@
         "list": [
             "recode-electrophysiology-openai"
         ]
+    },
+    "ollama": {
+        "enable": false
     }
 }

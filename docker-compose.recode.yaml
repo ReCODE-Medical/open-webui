@@ -35,9 +35,15 @@ services:
       WEBUI_NAME: ReCODE Chat
       WEBUI_SECRET_KEY: 
       
-      ENABLE_SIGNUP: True
-      ENABLE_OAUTH_SIGNUP: False
-      ENABLE_LOGIN_FORM: True
+      ENABLE_SIGNUP: False
+      ENABLE_OAUTH_SIGNUP: True
+      ENABLE_LOGIN_FORM: False
+
+      OAUTH_CLIENT_ID: S6QhjahAqW7usSlvPemUex7GrC8y0wvF
+      OAUTH_CLIENT_SECRET: lkLP-jbHZPw_v-D9bMuWCE7CC8n-EbfWH7SRDk-K5iimt6NBTmJNaYbJAvhYtjNd
+      # OPENID_PROVIDER_URL: https://dev-8fb6kya6ol3vdkwr.us.auth0.com/.well-known/openid-configuration
+      OPENID_PROVIDER_URL: https://auth.recodemedical.com/.well-known/openid-configuration
+      OPENID_REDIRECT_URI: http://localhost:8080/oauth/oidc/callback
       # OPENID_PROVIDER_URL:
       # OPENID_REDIRECT_URI:
       
@@ -112,6 +118,8 @@ services:
       PGADMIN_DEFAULT_PASSWORD: ${RECODE_PGADMIN_DEFAULT_PASSWORD}
       PGADMIN_CONFIG_SERVER_MODE: "True"
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "True"
+    ports:
+      - 5050:80
     volumes:
       - pgadmin-data:/var/lib/pgadmin
     depends_on:

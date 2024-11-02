@@ -50,6 +50,7 @@ from open_webui.apps.webui.models.auths import Auths
 from open_webui.apps.webui.models.functions import Functions
 from open_webui.apps.webui.models.models import Models
 from open_webui.apps.webui.models.users import UserModel, Users
+from open_webui.apps.webui.models.billing import MessageUsages
 
 from open_webui.apps.webui.utils import load_function_module_by_id
 
@@ -542,6 +543,17 @@ async def get_body_and_model_and_user(request):
     return body, model, user
 
 
+def is_billable_task(task: Optional[str]) -> bool:
+    """Determine if a task should count towards user's message quota"""
+    non_billable_tasks = {
+        str(TASKS.TITLE_GENERATION),
+        str(TASKS.QUERY_GENERATION),
+        str(TASKS.EMOJI_GENERATION),
+        str(TASKS.MOA_RESPONSE_GENERATION),
+        str(TASKS.FUNCTION_CALLING)
+    }
+    return task is None or (task not in non_billable_tasks)
+
 class ChatCompletionMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if not is_chat_completion_request(request):
@@ -555,6 +567,10 @@ class ChatCompletionMiddleware(BaseHTTPMiddleware):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 content={"detail": str(e)},
             )
+
+        # Check if this is a billable message
+        task = body.get("metadata", {}).get("task", None)
+        should_track_message = is_billable_task(task)
 
         metadata = {
             "chat_id": body.pop("chat_id", None),
@@ -659,6 +675,14 @@ class ChatCompletionMiddleware(BaseHTTPMiddleware):
         ]
 
         response = await call_next(request)
+
+        # Track successful billable messages after we get a response
+        if should_track_message and isinstance(response, StreamingResponse):
+            try:
+                MessageUsages.add_message(user_id=user.id)
+            except Exception as e:
+                log.exception("Failed to track message usage: %s", e)
+
         if not isinstance(response, StreamingResponse):
             return response
 

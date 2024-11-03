@@ -115,8 +115,8 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: ${RECODE_PGADMIN_DEFAULT_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${RECODE_PGADMIN_DEFAULT_PASSWORD}
-      PGADMIN_CONFIG_SERVER_MODE: "true"
-      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "true"
+      PGADMIN_CONFIG_SERVER_MODE: "True"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "True"
     volumes:
       - pgadmin-data:/var/lib/pgadmin
     depends_on:

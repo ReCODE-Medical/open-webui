@@ -302,6 +302,8 @@ RESET_CONFIG_ON_START = (
     os.environ.get("RESET_CONFIG_ON_START", "False").lower() == "true"
 )
 
+SUPABASE_DATABASE_URL = os.environ.get("SUPABASE_DATABASE_URL", "")
+
 ####################################
 # WEBUI_AUTH (Required for security)
 ####################################
@@ -355,3 +357,9 @@ else:
         AIOHTTP_CLIENT_TIMEOUT = int(AIOHTTP_CLIENT_TIMEOUT)
     except Exception:
         AIOHTTP_CLIENT_TIMEOUT = 300
+
+####################################
+# RECODE_DASHBOARD_API_KEY
+####################################
+
+RECODE_DASHBOARD_API_KEY = os.environ.get("RECODE_DASHBOARD_API_KEY", "")

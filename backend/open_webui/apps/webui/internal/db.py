@@ -12,6 +12,7 @@ from open_webui.env import (
     DATABASE_POOL_RECYCLE,
     DATABASE_POOL_SIZE,
     DATABASE_POOL_TIMEOUT,
+    SUPABASE_DATABASE_URL,
 )
 from peewee_migrate import Router
 from sqlalchemy import Dialect, create_engine, types
@@ -47,12 +48,32 @@ class JSONField(types.TypeDecorator):
             return json.loads(value)
 
 
+def create_db_engine(database_url: str, is_sqlite: bool = False):
+    """Helper function to create database engines with consistent configuration"""
+    if is_sqlite:
+        return create_engine(
+            database_url, connect_args={"check_same_thread": False}
+        )
+    else:
+        if DATABASE_POOL_SIZE > 0:
+            return create_engine(
+                database_url,
+                pool_size=DATABASE_POOL_SIZE,
+                max_overflow=DATABASE_POOL_MAX_OVERFLOW,
+                pool_timeout=DATABASE_POOL_TIMEOUT,
+                pool_recycle=DATABASE_POOL_RECYCLE,
+                pool_pre_ping=True,
+                poolclass=QueuePool,
+            )
+        else:
+            return create_engine(
+                database_url, pool_pre_ping=True, poolclass=NullPool
+            )
+
+
 # Workaround to handle the peewee migration
-# This is required to ensure the peewee migration is handled before the alembic migration
 def handle_peewee_migration(DATABASE_URL):
-    # db = None
     try:
-        # Replace the postgresql:// with postgres:// to handle the peewee migration
         db = register_connection(DATABASE_URL.replace("postgresql://", "postgres://"))
         migrate_dir = OPEN_WEBUI_DIR / "apps" / "webui" / "internal" / "migrations"
         router = Router(db, logger=log, migrate_dir=migrate_dir)
@@ -63,52 +84,46 @@ def handle_peewee_migration(DATABASE_URL):
         log.error(f"Failed to initialize the database connection: {e}")
         raise
     finally:
-        # Properly closing the database connection
         if db and not db.is_closed():
             db.close()
-
-        # Assert if db connection has been closed
         assert db.is_closed(), "Database connection is still open."
 
 
+# Initialize primary (PostgreSQL) database
 handle_peewee_migration(DATABASE_URL)
 
+# Create engines for both databases
+main_engine = create_db_engine(DATABASE_URL, is_sqlite="sqlite" in DATABASE_URL)
+supa_engine = create_db_engine(SUPABASE_DATABASE_URL)
 
-SQLALCHEMY_DATABASE_URL = DATABASE_URL
-if "sqlite" in SQLALCHEMY_DATABASE_URL:
-    engine = create_engine(
-        SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-    )
-else:
-    if DATABASE_POOL_SIZE > 0:
-        engine = create_engine(
-            SQLALCHEMY_DATABASE_URL,
-            pool_size=DATABASE_POOL_SIZE,
-            max_overflow=DATABASE_POOL_MAX_OVERFLOW,
-            pool_timeout=DATABASE_POOL_TIMEOUT,
-            pool_recycle=DATABASE_POOL_RECYCLE,
-            pool_pre_ping=True,
-            poolclass=QueuePool,
-        )
-    else:
-        engine = create_engine(
-            SQLALCHEMY_DATABASE_URL, pool_pre_ping=True, poolclass=NullPool
-        )
-
-
-SessionLocal = sessionmaker(
-    autocommit=False, autoflush=False, bind=engine, expire_on_commit=False
+# Create session factories for both databases
+MainSessionLocal = sessionmaker(
+    autocommit=False, autoflush=False, bind=main_engine, expire_on_commit=False
 )
+SupaSessionLocal = sessionmaker(
+    autocommit=False, autoflush=False, bind=supa_engine, expire_on_commit=False
+)
+
 Base = declarative_base()
-Session = scoped_session(SessionLocal)
+Session = scoped_session(MainSessionLocal)
+SupaSession = scoped_session(SupaSessionLocal)
 
 
-def get_session():
-    db = SessionLocal()
+def get_main_session():
+    db = MainSessionLocal()
     try:
         yield db
     finally:
         db.close()
 
 
-get_db = contextmanager(get_session)
+def get_supa_session():
+    db = SupaSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+get_db = contextmanager(get_main_session)
+get_supa_db = contextmanager(get_supa_session)

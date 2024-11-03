@@ -1,22 +1,28 @@
 import json
 import time
 import uuid
+import logging
 from typing import Optional
+from functools import wraps
+from concurrent.futures import ThreadPoolExecutor
 
-from open_webui.apps.webui.internal.db import Base, get_db
+from open_webui.apps.webui.internal.db import Base, get_db, get_supa_db, supa_engine
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import BigInteger, Boolean, Column, String, Text
+from sqlalchemy.exc import OperationalError
+
+log = logging.getLogger(__name__)
 
 ####################
 # Chat DB Schema
 ####################
-
 
 class Chat(Base):
     __tablename__ = "chat"
 
     id = Column(String, primary_key=True)
     user_id = Column(String)
+    oauth_sub = Column(Text, nullable=True)
     title = Column(Text)
     chat = Column(Text)  # Save Chat JSON as Text
 
@@ -27,11 +33,23 @@ class Chat(Base):
     archived = Column(Boolean, default=False)
 
 
+# Initialize Supabase tables
+try:
+    Base.metadata.create_all(bind=supa_engine, tables=[Chat.__table__])
+    log.info("Supabase tables initialized successfully")
+except Exception as e:
+    log.warning(f"Failed to initialize Supabase tables: {e}")
+
+# Thread pool for handling Supabase operations
+supa_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="supa_worker")
+
+
 class ChatModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
     user_id: str
+    oauth_sub: Optional[str] = None
     title: str
     chat: str
 
@@ -74,43 +92,89 @@ class ChatTitleIdResponse(BaseModel):
 
 
 class ChatTable:
-    def insert_new_chat(self, user_id: str, form_data: ChatForm) -> Optional[ChatModel]:
-        with get_db() as db:
-            id = str(uuid.uuid4())
-            chat = ChatModel(
-                **{
-                    "id": id,
-                    "user_id": user_id,
-                    "title": (
-                        form_data.chat["title"]
-                        if "title" in form_data.chat
-                        else "New Chat"
-                    ),
-                    "chat": json.dumps(form_data.chat),
-                    "created_at": int(time.time()),
-                    "updated_at": int(time.time()),
-                }
-            )
+    def _async_supa_write(self, operation):
+        """Helper method to execute Supabase operations asynchronously"""
+        supa_executor.submit(operation)
 
+    def __del__(self):
+        """Cleanup thread pool on deletion"""
+        supa_executor.shutdown(wait=False)
+
+
+    def insert_new_chat(self, user_id: str, form_data: ChatForm, db_session=None) -> Optional[ChatModel]:
+        from open_webui.apps.webui.models.users import Users  # Be lazy to avoid circular imports
+
+        id = str(uuid.uuid4())
+        oauth_sub = Users.get_oauth_sub_by_user(user_id)
+        chat = ChatModel(
+            **{
+                "id": id,
+                "user_id": user_id,
+                "oauth_sub": oauth_sub,
+                "title": (
+                    form_data.chat["title"]
+                    if "title" in form_data.chat
+                    else "New Chat"
+                ),
+                "chat": json.dumps(form_data.chat),
+                "created_at": int(time.time()),
+                "updated_at": int(time.time()),
+            }
+        )
+
+        # Write to primary DB
+        with get_db() as db:
             result = Chat(**chat.model_dump())
             db.add(result)
             db.commit()
             db.refresh(result)
-            return ChatModel.model_validate(result) if result else None
 
-    def update_chat_by_id(self, id: str, chat: dict) -> Optional[ChatModel]:
+        # Async write to Supabase with same ID
+        def supa_insert():
+            try:
+                with get_supa_db() as supa_db:
+                    supa_result = Chat(**chat.model_dump())
+                    supa_db.add(supa_result)
+                    supa_db.commit()
+            except Exception as e:
+                log.warning(f"Supabase write failed: {e}")
+        
+        self._async_supa_write(supa_insert)
+        return ChatModel.model_validate(result) if result else None
+
+    
+    def update_chat_by_id(self, id: str, chat: dict, db_session=None) -> Optional[ChatModel]:
+        # Update primary DB
         try:
             with get_db() as db:
                 chat_obj = db.get(Chat, id)
+                if not chat_obj:
+                    return None
                 chat_obj.chat = json.dumps(chat)
                 chat_obj.title = chat["title"] if "title" in chat else "New Chat"
                 chat_obj.updated_at = int(time.time())
                 db.commit()
                 db.refresh(chat_obj)
+                result = ChatModel.model_validate(chat_obj)
+        except Exception as e:
+            log.warning(f"Primary DB update failed: {e}")
+            result = None
 
-                return ChatModel.model_validate(chat_obj)
-        except Exception:
-            return None
+        # Async update Supabase
+        def supa_update():
+            try:
+                with get_supa_db() as supa_db:
+                    supa_chat_obj = supa_db.get(Chat, id)
+                    if supa_chat_obj:
+                        supa_chat_obj.chat = json.dumps(chat)
+                        supa_chat_obj.title = chat["title"] if "title" in chat else "New Chat"
+                        supa_chat_obj.updated_at = int(time.time())
+                        supa_db.commit()
+            except Exception as e:
+                log.warning(f"Supabase update failed: {e}")
+
+        self._async_supa_write(supa_update)
+        return result
 
     def insert_shared_chat_by_chat_id(self, chat_id: str) -> Optional[ChatModel]:
         with get_db() as db:
@@ -183,15 +247,31 @@ class ChatTable:
             return None
 
     def toggle_chat_archive_by_id(self, id: str) -> Optional[ChatModel]:
-        try:
-            with get_db() as db:
+        # Toggle in primary DB
+        with get_db() as db:
+            try:
                 chat = db.get(Chat, id)
                 chat.archived = not chat.archived
                 db.commit()
                 db.refresh(chat)
-                return ChatModel.model_validate(chat)
-        except Exception:
-            return None
+                result = ChatModel.model_validate(chat)
+                new_archived_state = chat.archived  # Capture the new state
+            except Exception:
+                return None
+
+        # Async toggle in Supabase
+        def supa_toggle():
+            try:
+                with get_supa_db() as supa_db:
+                    supa_chat = supa_db.get(Chat, id)
+                    if supa_chat:
+                        supa_chat.archived = new_archived_state  # Use same value as primary DB
+                        supa_db.commit()
+            except Exception as e:
+                log.warning(f"Supabase archive toggle failed: {e}")
+
+        self._async_supa_write(supa_toggle)
+        return result
 
     def archive_all_chats_by_user_id(self, user_id: str) -> bool:
         try:

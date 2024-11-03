@@ -513,9 +513,9 @@
 									<Error content={message?.error?.content ?? message.content} />
 								{/if}
 
-								{#if message.citations}
+								<!-- {#if message.citations}
 									<Citations citations={message.citations} />
-								{/if}
+								{/if} -->
 							</div>
 						{/if}
 					</div>
@@ -962,7 +962,7 @@
 									{/if}
 
 									{#if isLastMessage}
-										<Tooltip content={$i18n.t('Continue Response')} placement="bottom">
+										<!-- <Tooltip content={$i18n.t('Continue Response')} placement="bottom">
 											<button
 												type="button"
 												id="continue-response-button"
@@ -1049,7 +1049,7 @@
 													/>
 												</svg>
 											</button>
-										</Tooltip>
+										</Tooltip> -->
 
 										{#each (model?.actions ?? []).filter((action) => !(action?.__webui__ ?? false)) as action}
 											<Tooltip content={action.name} placement="bottom">

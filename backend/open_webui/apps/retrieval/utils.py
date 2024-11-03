@@ -395,7 +395,12 @@ async def get_rag_context(
                 )
 
                 if context["file"].get("name").startswith("RECODE_KNOWLEDGE_"):
-                    citations.append("RECODE_OVERRIDE")
+                    citations.append(
+                        {
+                            "source": context["file"],
+                            "document": context["documents"][0],
+                        }
+                    )
                 elif "metadatas" in context:
                     citations.append(
                         {

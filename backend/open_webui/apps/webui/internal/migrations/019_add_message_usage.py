@@ -37,6 +37,11 @@ with suppress(ImportError):
 def migrate(migrator: Migrator, database: pw.Database, *, fake=False):
     """Write your migrations here."""
 
+    migrator.add_fields(
+        "chat",
+        oauth_sub=pw.TextField(null=True),
+    )
+
     @migrator.create_model
     class MessageUsage(pw.Model):
         id = pw.TextField(primary_key=True)
@@ -49,5 +54,5 @@ def migrate(migrator: Migrator, database: pw.Database, *, fake=False):
 
 def rollback(migrator: Migrator, database: pw.Database, *, fake=False):
     """Write your rollback migrations here."""
-
+    migrator.remove_fields("chat", "oauth_sub")
     migrator.remove_model("message_usage")

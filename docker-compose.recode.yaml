@@ -42,11 +42,8 @@ services:
 
       OAUTH_CLIENT_ID: S6QhjahAqW7usSlvPemUex7GrC8y0wvF
       OAUTH_CLIENT_SECRET: lkLP-jbHZPw_v-D9bMuWCE7CC8n-EbfWH7SRDk-K5iimt6NBTmJNaYbJAvhYtjNd
-      # OPENID_PROVIDER_URL: https://dev-8fb6kya6ol3vdkwr.us.auth0.com/.well-known/openid-configuration
       OPENID_PROVIDER_URL: https://auth.recodemedical.com/.well-known/openid-configuration
-      OPENID_REDIRECT_URI: http://localhost:8080/oauth/oidc/callback
-      # OPENID_PROVIDER_URL:
-      # OPENID_REDIRECT_URI:
+      OPENID_REDIRECT_URI: ${RECODE_OPENID_REDIRECT_URI}
       
       DEFAULT_USER_ROLE: user
       USER_PERMISSIONS_CHAT_DELETION: False

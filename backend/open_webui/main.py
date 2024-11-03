@@ -103,6 +103,7 @@ from open_webui.env import (
     WEBUI_SESSION_COOKIE_SECURE,
     WEBUI_URL,
     RESET_CONFIG_ON_START,
+    RECODE_DASHBOARD_API_KEY,
 )
 from fastapi import (
     Depends,
@@ -113,7 +114,9 @@ from fastapi import (
     Request,
     UploadFile,
     status,
+    Security
 )
+from fastapi.security.api_key import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -2382,6 +2385,73 @@ async def oauth_callback(provider: str, request: Request, response: Response):
     # Redirect back to the frontend with the JWT token
     redirect_url = f"{request.base_url}auth#token={jwt_token}"
     return RedirectResponse(url=redirect_url)
+
+
+##################################
+# Message Usage Endpoints
+##################################
+
+API_KEY_NAME = "X-Api-Key"
+api_key_header = APIKeyHeader(name=API_KEY_NAME)
+
+class DashboardAccess(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=403,
+            detail="Could not validate dashboard access"
+        )
+
+async def verify_dashboard_api_key(api_key: str = Security(api_key_header)):
+    """Verify the API key from the dashboard"""
+    if not RECODE_DASHBOARD_API_KEY:
+        log.warning("Dashboard API key not configured")
+        raise DashboardAccess()
+        
+    if not api_key or api_key != RECODE_DASHBOARD_API_KEY:
+        raise DashboardAccess()
+    return True
+
+class MessageUsageRequest(BaseModel):
+    auth0_id: str
+    start_timestamp: int
+    end_timestamp: int
+
+@app.post("/recode/api/v1/usage/messages")
+async def get_message_usage(
+    request: MessageUsageRequest,
+    verified: bool = Depends(verify_dashboard_api_key)
+):
+    """Get message usage count for a user within a time period"""
+    try:
+        # Get the internal user ID using the cleaned auth0 ID
+        user = Users.get_user_by_oauth_sub(request.auth0_id)
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail="User not found"
+            )
+
+        # Get message count for the time period
+        message_count = MessageUsages.get_message_count_in_period(
+            user_id=user.id,
+            start_timestamp=request.start_timestamp,
+            end_timestamp=request.end_timestamp
+        )
+
+        return {
+            "oauth_sub": user.oauth_sub,
+            "message_count": message_count,
+            "start_timestamp": request.start_timestamp,
+            "end_timestamp": request.end_timestamp
+        }
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
 
 
 @app.get("/manifest.json")

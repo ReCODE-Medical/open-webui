@@ -36,9 +36,9 @@ services:
       WEBUI_SECRET_KEY: 
       RECODE_DASHBOARD_API_KEY: ${RECODE_DASHBOARD_API_KEY}
       
-      ENABLE_SIGNUP: false
+      ENABLE_SIGNUP: "false"
       ENABLE_OAUTH_SIGNUP: true
-      ENABLE_LOGIN_FORM: false
+      ENABLE_LOGIN_FORM: "false"
 
       OAUTH_CLIENT_ID: S6QhjahAqW7usSlvPemUex7GrC8y0wvF
       OAUTH_CLIENT_SECRET: lkLP-jbHZPw_v-D9bMuWCE7CC8n-EbfWH7SRDk-K5iimt6NBTmJNaYbJAvhYtjNd

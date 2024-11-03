@@ -46,12 +46,12 @@ services:
       OPENID_REDIRECT_URI: ${RECODE_OPENID_REDIRECT_URI}
       
       DEFAULT_USER_ROLE: user
-      USER_PERMISSIONS_CHAT_DELETION: false
-      USER_PERMISSIONS_CHAT_EDITING: false
-      USER_PERMISSIONS_CHAT_TEMPORARY: false
+      USER_PERMISSIONS_CHAT_DELETION: "false"
+      USER_PERMISSIONS_CHAT_EDITING: "false"
+      USER_PERMISSIONS_CHAT_TEMPORARY: "false"
       ENABLE_MESSAGE_RATING: true
-      ENABLE_COMMUNITY_SHARING: false
-      ENABLE_OLLAMA_API: false
+      ENABLE_COMMUNITY_SHARING: "false"
+      ENABLE_OLLAMA_API: "false"
       ENABLE_OPENAI_API: true
       
       OPENAI_API_KEY: ${RECODE_OPENAI_API_KEY}
@@ -83,7 +83,7 @@ services:
       ENABLE_MODEL_FILTER: true
       MODEL_FILTER_LIST: recode-electrophysiology-openai
       DEFAULT_MODELS: recode-electrophysiology-openai
-      RESET_CONFIG_ON_START: false
+      RESET_CONFIG_ON_START: "false"
       
       WEBSOCKET_MANAGER: redis
       WEBSOCKET_REDIS_URL: redis://redis:6379/0

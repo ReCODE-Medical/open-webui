@@ -82,11 +82,13 @@
 		>
 			<div>
 				<div class=" capitalize line-clamp-1" in:fade={{ duration: 200 }}>
-					{#if models[selectedModelIdx]?.info}
-						{models[selectedModelIdx]?.info?.name}
-					{:else}
-						{$i18n.t('Hello, {{name}}', { name: $user.name })}
-					{/if}
+					<!-- {#if models[selectedModelIdx]?.info} -->
+						<!-- ReCODE Chat: {models[selectedModelIdx]?.info?.name} -->
+					<!-- {:else} -->
+						<!-- {$i18n.t('Hello, {{name}}', { name: $user.name })} -->
+						<!-- ReCODE Chat -->
+					<!-- {/if} -->
+					ReCODE Chat
 				</div>
 
 				<div in:fade={{ duration: 200, delay: 200 }}>

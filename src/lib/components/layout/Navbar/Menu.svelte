@@ -131,7 +131,7 @@
 				<div class="flex items-center">{$i18n.t('Settings')}</div>
 			</DropdownMenu.Item> -->
 
-			{#if $mobile}
+			<!-- {#if $mobile}
 				<DropdownMenu.Item
 					class="flex gap-2 items-center px-3 py-2 text-sm  cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md"
 					id="chat-controls-button"
@@ -144,7 +144,7 @@
 					<AdjustmentsHorizontal className=" size-4" strokeWidth="0.5" />
 					<div class="flex items-center">{$i18n.t('Controls')}</div>
 				</DropdownMenu.Item>
-			{/if}
+			{/if} -->
 
 			<DropdownMenu.Item
 				class="flex gap-2 items-center px-3 py-2 text-sm  cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md"
@@ -159,7 +159,7 @@
 				<div class="flex items-center">{$i18n.t('Overview')}</div>
 			</DropdownMenu.Item>
 
-			<DropdownMenu.Item
+			<!-- <DropdownMenu.Item
 				class="flex gap-2 items-center px-3 py-2 text-sm  cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md"
 				id="chat-overview-button"
 				on:click={async () => {
@@ -170,7 +170,7 @@
 			>
 				<Cube className=" size-4" strokeWidth="1.5" />
 				<div class="flex items-center">{$i18n.t('Artifacts')}</div>
-			</DropdownMenu.Item>
+			</DropdownMenu.Item> -->
 
 			<DropdownMenu.Item
 				class="flex gap-2 items-center px-3 py-2 text-sm  cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md"

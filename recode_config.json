@@ -34,7 +34,7 @@
             }
         ],
         "banners": [],
-        "default_models": "recode-electrophysiology-openai",
+        "default_models": "recode-cardio-openai",
         "user_permissions": {
             "chat": {
                 "deletion": false,
@@ -57,7 +57,7 @@
         "tika_server_url": "http://tika:9998",
         "chunk_size": 1000,
         "chunk_overlap": 100,
-        "template": "You are given a user query, some textual context and rules, all inside xml tags.\n\n<context>\n[context]\n</context>\n\n<rules>\n- Remember the following, ★ = Add-On Code, ♦ = Inpatient-Only Procedure, XXX = The global concept does not apply to the code, YYY = The global period is set by the MAC, ZZZ = The code is related to another service and is always included in the global period of the other service.\n- Answer in the same language as the user query.\n- If the context appears unreadable or of poor quality, tell the user then answer as best as you can.\n- If the answer is not in the context but you think you know the answer, explain that to the user then answer with your own knowledge.\n- Answer directly and without using xml tags.\n</rules>\n\n<user_query>\n[query]\n</user_query>\n",
+        "template": "You are given a user query, some textual context and rules, all inside xml tags.\n\n<context>\n[context]\n</context>\n\n<rules>\n- In the context, these symbols are defined: ★ = Add-On Code, ♦ = Inpatient-Only Procedure, XXX = The global concept does not apply to the code, YYY = The global period is set by the MAC, ZZZ = The code is related to another service and is always included in the global period of the other service.\n- Answer in the same language as the user query.\n- If the context appears unreadable or of poor quality, tell the user then answer as best as you can.\n- If the answer is not in the context but you think you know the answer, explain that to the user then answer with your own knowledge.\n- Answer directly and without using xml tags.\n</rules>\n\n<user_query>\n[query]\n</user_query>\n",
         "top_k": 20,
         "relevance_threshold": 0,
         "enable_hybrid_search": false
@@ -103,7 +103,9 @@
     "model_filter": {
         "enable": true,
         "list": [
-            "recode-electrophysiology-openai"
+            "recode-cardio-openai",
+            "recode-vascular-surgery-openai",
+            "recode-ortho-openai"
         ]
     },
     "ollama": {

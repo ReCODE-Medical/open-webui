@@ -33,7 +33,7 @@ RECODE_FUNCTIONS_JSON_FILE = "recode_functions.json"
 
 RECODE_KNOWLEDGE_TO_MODEL_MAP = {
     "RECODE_KNOWLEDGE_diagnostic_and_therapeutic_electrophysiology_studies": [
-        "recode-electrophysiology-openai",
+        "recode-cardio-openai",
         "recode-electrophysiology-azure"
     ],
 }
@@ -406,10 +406,10 @@ def insert_models(models_data: list[dict]):
     assert all(successes), "Not all models were deleted."
 
     for spec in models_data:
-        if spec["info"]["params"]["system"].startswith("@"):
+        if spec.get("info", {}).get("params", {}).get("system", "").startswith("@"):
             filename = spec["info"]["params"]["system"][1:]
             spec["info"]["params"]["system"] = open(filename, "r").read()
-        if spec["info"]["meta"]["profile_image_url"].startswith("@"):
+        if spec.get("info", {}).get("meta", {}).get("profile_image_url", "").startswith("@"):
             filename = spec["info"]["meta"]["profile_image_url"][1:]
             mimetype, _ = mimetypes.guess_type(filename)
             data = open(filename, "rb").read()

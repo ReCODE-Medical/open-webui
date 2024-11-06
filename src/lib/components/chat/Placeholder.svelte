@@ -138,11 +138,13 @@
 					</div>
 
 					<div class=" capitalize line-clamp-1 text-3xl md:text-4xl" in:fade={{ duration: 100 }}>
-						{#if models[selectedModelIdx]?.info}
-							{models[selectedModelIdx]?.info?.name}
-						{:else}
-							{$i18n.t('Hello, {{name}}', { name: $user.name })}
-						{/if}
+						<!-- {#if models[selectedModelIdx]?.info} -->
+							<!-- ReCODE Chat: {models[selectedModelIdx]?.info?.name} -->
+						<!-- {:else} -->
+							<!-- {$i18n.t('Hello, {{name}}', { name: $user.name })} -->
+							<!-- ReCODE Chats -->
+						<!-- {/if} -->
+						ReCODE Chat
 					</div>
 				</div>
 

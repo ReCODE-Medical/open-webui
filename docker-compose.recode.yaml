@@ -81,8 +81,8 @@ services:
       RAG_EMBEDDING_OPENAI_BATCH_SIZE: 2048
       
       ENABLE_MODEL_FILTER: true
-      MODEL_FILTER_LIST: recode-electrophysiology-openai
-      DEFAULT_MODELS: recode-electrophysiology-openai
+      MODEL_FILTER_LIST: "recode-cardio-openai;recode-vascular-surgery-openai;recode-ortho-openai"
+      DEFAULT_MODELS: "recode-cardio-openai"
       RESET_CONFIG_ON_START: "false"
       
       WEBSOCKET_MANAGER: redis

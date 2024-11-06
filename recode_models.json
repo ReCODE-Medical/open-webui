@@ -1,113 +1,4 @@
-[
-    {
-        "id": "recode-electrophysiology-azure",
-        "name": "ReCODE Electrophysiology (Azure)",
-        "object": "model",
-        "created": 1730074195,
-        "owned_by": "openai",
-        "pipe": {
-            "type": "pipe"
-        },
-        "info": {
-            "id": "recode-electrophysiology-azure",
-            "user_id": "166572b2-ec88-45ef-b5a5-bcb4cb424809",
-            "base_model_id": null,
-            "name": "ReCODE Electrophysiology",
-            "params": {
-                "system": "@recode_electrophysiology_system_prompt.md",
-                "stream_response": true
-            },
-            "meta": {
-                "profile_image_url": "@recode_tri_logo.jpg",
-                "description": "Hi, I am ReCODE's Electrophysiology coding assistant.",
-                "capabilities": {
-                    "vision": true,
-                    "usage": false
-                },
-                "tags": [],
-                "position": 1,
-                "knowledge": [
-                    {
-                        "id": "<KNOWLEDGE_ID>",
-                        "name": "<KNOWLEDGE_NAME>",
-                        "description": "<KNOWLEDGE_DESCRIPTION>",
-                        "data": {
-                            "file_ids": [
-                                "<FILE_ID>"
-                            ]
-                        },
-                        "meta": null,
-                        "created_at": 1728849784,
-                        "updated_at": 1728849784,
-                        "type": "collection"
-                    }
-                ]
-            },
-            "updated_at": 1730075196,
-            "created_at": 1730075196
-        },
-        "preset": true,
-        "actions": []
-    },
-    {
-        "id": "recode-vascular-surgery-openai",
-        "name": "Vascular Surgery",
-        "object": "model",
-        "created": 1728850556,
-        "owned_by": "openai",
-        "info": {
-            "id": "recode-vascular-surgery-openai",
-            "user_id": "ReCODE",
-            "base_model_id": "chatgpt-4o-latest",
-            "name": "Vascular Surgery",
-            "params": {
-                "stream_response": true
-            },
-            "meta": {
-                "profile_image_url": "/static/favicon.png",
-                "description": "Hi, I am ReCODE Medical's Vascular Surgery Coding Assistant.",
-                "capabilities": {
-                    "vision": true,
-                    "usage": false
-                },
-                "position": 2
-            },
-            "updated_at": 1728850556,
-            "created_at": 1728850556
-        },
-        "preset": true,
-        "actions": []
-    },
-    {
-        "id": "recode-ortho-openai",
-        "name": "Orthopedics",
-        "object": "model",
-        "created": 1728850556,
-        "owned_by": "openai",
-        "info": {
-            "id": "recode-ortho-openai",
-            "user_id": "ReCODE",
-            "base_model_id": "chatgpt-4o-latest",
-            "name": "Orthopedics",
-            "params": {
-                "stream_response": true
-            },
-            "meta": {
-                "profile_image_url": "/static/favicon.png",
-                "description": "Hi, I am ReCODE Medical's Orthopedics Coding Assistant.",
-                "capabilities": {
-                    "vision": true,
-                    "usage": false
-                },
-                "position": 3
-            },
-            "updated_at": 1728850556,
-            "created_at": 1728850556
-        },
-        "preset": true,
-        "actions": []
-    },
-
+[    
     {
         "id": "recode-cardio-openai",
         "name": "Cardiology",
@@ -150,6 +41,114 @@
             },
             "updated_at": 1728850556,
             "created_at": 1728850556
+        },
+        "preset": true,
+        "actions": []
+    },
+    {
+        "id": "recode-vascular-surgery-openai",
+        "name": "Vascular Surgery",
+        "object": "model",
+        "created": 1728850556,
+        "owned_by": "openai",
+        "info": {
+            "id": "recode-vascular-surgery-openai",
+            "user_id": "ReCODE",
+            "base_model_id": "chatgpt-4o-latest",
+            "name": "Vascular Surgery",
+            "params": {
+                "stream_response": true
+            },
+            "meta": {
+                "profile_image_url": "/static/favicon.png",
+                "description": "Hi, I am ReCODE Medical's Vascular Surgery Coding Assistant.",
+                "capabilities": {
+                    "vision": true,
+                    "usage": false
+                },
+                "position": 1
+            },
+            "updated_at": 1728850556,
+            "created_at": 1728850556
+        },
+        "preset": true,
+        "actions": []
+    },
+    {
+        "id": "recode-ortho-openai",
+        "name": "Orthopedics",
+        "object": "model",
+        "created": 1728850556,
+        "owned_by": "openai",
+        "info": {
+            "id": "recode-ortho-openai",
+            "user_id": "ReCODE",
+            "base_model_id": "chatgpt-4o-latest",
+            "name": "Orthopedics",
+            "params": {
+                "stream_response": true
+            },
+            "meta": {
+                "profile_image_url": "/static/favicon.png",
+                "description": "Hi, I am ReCODE Medical's Orthopedics Coding Assistant.",
+                "capabilities": {
+                    "vision": true,
+                    "usage": false
+                },
+                "position": 2
+            },
+            "updated_at": 1728850556,
+            "created_at": 1728850556
+        },
+        "preset": true,
+        "actions": []
+    },
+    {
+        "id": "recode-electrophysiology-azure",
+        "name": "ReCODE Electrophysiology (Azure)",
+        "object": "model",
+        "created": 1730074195,
+        "owned_by": "openai",
+        "pipe": {
+            "type": "pipe"
+        },
+        "info": {
+            "id": "recode-electrophysiology-azure",
+            "user_id": "166572b2-ec88-45ef-b5a5-bcb4cb424809",
+            "base_model_id": null,
+            "name": "ReCODE Electrophysiology",
+            "params": {
+                "system": "@recode_electrophysiology_system_prompt.md",
+                "stream_response": true
+            },
+            "meta": {
+                "profile_image_url": "@recode_tri_logo.jpg",
+                "description": "Hi, I am ReCODE's Electrophysiology coding assistant.",
+                "capabilities": {
+                    "vision": true,
+                    "usage": false
+                },
+                "tags": [],
+                "position": 3,
+                "knowledge": [
+                    {
+                        "id": "<KNOWLEDGE_ID>",
+                        "name": "<KNOWLEDGE_NAME>",
+                        "description": "<KNOWLEDGE_DESCRIPTION>",
+                        "data": {
+                            "file_ids": [
+                                "<FILE_ID>"
+                            ]
+                        },
+                        "meta": null,
+                        "created_at": 1728849784,
+                        "updated_at": 1728849784,
+                        "type": "collection"
+                    }
+                ]
+            },
+            "updated_at": 1730075196,
+            "created_at": 1730075196
         },
         "preset": true,
         "actions": []

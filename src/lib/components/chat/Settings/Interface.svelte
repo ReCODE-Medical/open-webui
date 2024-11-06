@@ -148,6 +148,8 @@
 	};
 
 	onMount(async () => {
+		saveSettings({ splitLargeChunks: true });
+
 		titleAutoGenerate = $settings?.title?.auto ?? true;
 
 		responseAutoCopy = $settings.responseAutoCopy ?? false;
@@ -338,7 +340,7 @@
 				</div>
 			</div>
 
-			<div>
+			<!-- <div>
 				<div class=" py-0.5 flex w-full justify-between">
 					<div class=" self-center text-xs">
 						{$i18n.t('Fluidly stream large external response chunks')}
@@ -358,7 +360,7 @@
 						{/if}
 					</button>
 				</div>
-			</div>
+			</div> -->
 
 			<div>
 				<div class=" py-0.5 flex w-full justify-between">

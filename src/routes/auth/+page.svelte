@@ -357,9 +357,7 @@
 									</svg>
 
 									<span
-										>{$i18n.t('Continue with {{provider}}', {
-											provider: $config?.oauth?.providers?.oidc ?? 'SSO'
-										})}</span
+										>{$i18n.t('Continue to login')}</span
 									>
 								</button>
 							{/if}

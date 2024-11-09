@@ -1584,9 +1584,17 @@
 			innerError = await res.json();
 		}
 		console.error(innerError);
+		let limitExceeded = false;
 		if ('detail' in innerError) {
-			toast.error(innerError.detail);
-			errorMessage = innerError.detail;
+			if (innerError.detail === 'Message limit exceeded') {
+				toast.warning($i18n.t(`Message limit exceeded!`, { used: innerError.used, limit: innerError.limit }));
+				errorMessage = $i18n.t(`Message limit exceeded: {{used}} of {{limit}} used.`, { used: innerError.used, limit: innerError.limit });
+				errorMessage += '\n' + $i18n.t('Please visit ') + `<a href="https://recodemedical.com/dashboard" target="_blank">https://recodemedical.com/dashboard</a>` + $i18n.t(' to upgrade your plan.');
+				limitExceeded = true;
+			} else {
+				toast.error(innerError.detail);
+				errorMessage = innerError.detail;
+			}
 		} else if ('error' in innerError) {
 			if ('message' in innerError.error) {
 				toast.error(innerError.error.message);
@@ -1600,14 +1608,18 @@
 			errorMessage = innerError.message;
 		}
 
-		responseMessage.error = {
-			content:
-				$i18n.t(`Uh-oh! There was an issue connecting to {{provider}}.`, {
-					provider: model.name ?? model.id
-				}) +
-				'\n' +
-				errorMessage
-		};
+		if (limitExceeded) {
+			responseMessage.error = {content: errorMessage}; // Add link to dashboard and upgrade plan
+		} else {
+			responseMessage.error = {
+				content:
+					$i18n.t(`Uh-oh! There was an issue connecting to {{provider}}.`, {
+						provider: model.name ?? model.id
+					}) +
+					'\n' +
+					errorMessage
+			};
+		}
 		responseMessage.done = true;
 
 		if (responseMessage.statusHistory) {

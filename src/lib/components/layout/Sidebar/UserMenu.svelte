@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { DropdownMenu } from 'bits-ui';
-	import { createEventDispatcher, getContext, onMount } from 'svelte';
-
+	import { createEventDispatcher, getContext } from 'svelte';
+	import { getMessageUsage } from '$lib/apis';
 	import { flyAndScale } from '$lib/utils/transitions';
 	import { goto } from '$app/navigation';
 	import ArchiveBox from '$lib/components/icons/ArchiveBox.svelte';
 	import { showSettings, activeUserCount, USAGE_POOL, mobile, showSidebar } from '$lib/stores';
 	import { fade, slide } from 'svelte/transition';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
+	import UsageProgressRing from '$lib/components/chat/MessageInput/UsageProgressRing.svelte';
 
 	const i18n = getContext('i18n');
 
@@ -15,14 +16,46 @@
 	export let role = '';
 	export let className = 'max-w-[240px]';
 
+	// Initialize the usage values
+	let messageLimit = 0;
+	let usedMessages = 0;
+
+	// Function to fetch usage data
+	async function fetchUsageData() {
+		try {
+			const response = await getMessageUsage();
+			usedMessages = response.used;
+			messageLimit = response.limit;
+		} catch (error) {
+			console.error('Failed to fetch message usage:', error);
+		}
+	}
+
+	// Handle dropdown open state changes
+	function handleOpenChange(state: boolean) {
+		show = state;
+		if (state) {
+			fetchUsageData();
+		}
+		dispatch('change', state);
+	}
+
+	// Handle ring mount event
+	function handleRingMount() {
+		fetchUsageData();
+	}
+
 	const dispatch = createEventDispatcher();
+
+	const url = 'https://recodemedical.com/dashboard';
+	function openNewWindow() {
+		window.open(url, '_blank');
+	}
 </script>
 
 <DropdownMenu.Root
 	bind:open={show}
-	onOpenChange={(state) => {
-		dispatch('change', state);
-	}}
+	onOpenChange={handleOpenChange}
 >
 	<DropdownMenu.Trigger>
 		<slot />
@@ -36,6 +69,21 @@
 			align="start"
 			transition={(e) => fade(e, { duration: 100 })}
 		>
+			<button
+				class="flex rounded-md py-2 px-3 w-full hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+				on:click={openNewWindow}
+			>
+				<div class="self-center mr-3">
+					<UsageProgressRing 
+						used={usedMessages} 
+						limit={messageLimit} 
+						on:ringMount={handleRingMount}
+					/>
+				</div>
+				<div class="self-center font-medium">
+					{$i18n.t('Usage')}: {usedMessages} {$i18n.t('out of')} {messageLimit}
+				</div>
+			</button>
 			<button
 				class="flex rounded-md py-2 px-3 w-full hover:bg-gray-50 dark:hover:bg-gray-800 transition"
 				on:click={async () => {

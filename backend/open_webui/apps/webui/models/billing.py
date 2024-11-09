@@ -1,54 +1,16 @@
-import time
-import uuid
-from typing import Optional, List
-from datetime import datetime
-from pydantic import BaseModel, ConfigDict
-from sqlalchemy import BigInteger, Column, String, ForeignKey
-from open_webui.apps.webui.internal.db import Base, get_db
+from sqlalchemy import Column, String, Integer, DateTime, UUID
 
-class MessageUsage(Base):
-    __tablename__ = "message_usage"
+from open_webui.apps.webui.internal.db import Base
 
-    id = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey("user.id"))
-    timestamp = Column(BigInteger)  # Epoch timestamp of the message
-    
-class MessageUsageModel(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class SupabaseMessageUsage(Base):
+    __tablename__ = 'message_usage'
 
-    id: str
-    user_id: str
-    timestamp: int
-
-class MessageUsageTable:
-    def add_message(self, user_id: str) -> Optional[MessageUsageModel]:
-        """Record a new message usage"""
-        with get_db() as db:
-            usage = MessageUsageModel(
-                id=str(uuid.uuid4()),
-                user_id=user_id,
-                timestamp=int(time.time())
-            )
-            
-            result = MessageUsage(**usage.model_dump())
-            db.add(result)
-            db.commit()
-            db.refresh(result)
-            return MessageUsageModel.model_validate(result) if result else None
-
-    def get_message_count_in_period(
-        self,
-        user_id: str,
-        start_timestamp: int,
-        end_timestamp: int
-    ) -> int:
-        """Get count of messages for a user within a time period"""
-        with get_db() as db:
-            return db.query(MessageUsage).filter(
-                MessageUsage.user_id == user_id,
-                MessageUsage.timestamp >= start_timestamp,
-                MessageUsage.timestamp <= end_timestamp
-            ).count()
-
-# Create global instance
-MessageUsages = MessageUsageTable()
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    auth0_id = Column(String, unique=True, nullable=False)
+    subscription_id = Column(UUID(as_uuid=True), nullable=True)
+    period_start = Column(DateTime(timezone=True), nullable=False)
+    period_end = Column(DateTime(timezone=True), nullable=False)
+    messages_used = Column(Integer, default=0, nullable=False)
+    messages_limit = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False)
+    updated_at = Column(DateTime(timezone=True), nullable=False)

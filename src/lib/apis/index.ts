@@ -1,5 +1,40 @@
 import { WEBUI_API_BASE_URL, WEBUI_BASE_URL } from '$lib/constants';
 
+/**
+ * RECODE function
+ * Fetches the message usage data from the API.
+ *
+ * @param {string} [token=''] - The authorization token to be included in the request headers.
+ * @returns {Promise<{ used: number; limit: number }>} - A promise that resolves to an object containing the used and limit values.
+ * @throws Will throw an error if the fetch request fails.
+ */
+export const getMessageUsage = async (token: string = ''): Promise<{ used: number; limit: number }> => {
+	let error = null;
+
+	const res = await fetch(`${WEBUI_BASE_URL}/recode/api/v1/usage/messages`, {
+		method: 'GET',
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json',
+			...(token && { authorization: `Bearer ${token}` })
+		}
+	})
+		.then(async (res) => {
+			if (!res.ok) throw await res.json();
+			return res.json();
+		})
+		.catch((err) => {
+			console.log(err);
+			error = err;
+			return null;
+		});
+
+	if (error) {
+		throw error;
+	}
+	return res;
+}
+
 export const getModels = async (token: string = '') => {
 	let error = null;
 

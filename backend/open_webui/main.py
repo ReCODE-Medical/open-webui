@@ -44,13 +44,13 @@ from open_webui.apps.webui.main import (
     generate_function_chat_completion,
     get_pipe_models,
 )
-from open_webui.apps.webui.internal.db import Session
+from open_webui.apps.webui.internal.db import Session, get_supa_db
 
 from open_webui.apps.webui.models.auths import Auths
 from open_webui.apps.webui.models.functions import Functions
 from open_webui.apps.webui.models.models import Models
 from open_webui.apps.webui.models.users import UserModel, Users
-from open_webui.apps.webui.models.billing import MessageUsages
+from open_webui.apps.webui.models.billing import SupabaseMessageUsage
 
 from open_webui.apps.webui.utils import load_function_module_by_id
 
@@ -545,18 +545,6 @@ async def get_body_and_model_and_user(request):
 
     return body, model, user
 
-
-def is_billable_task(task: Optional[str]) -> bool:
-    """Determine if a task should count towards user's message quota"""
-    non_billable_tasks = {
-        str(TASKS.TITLE_GENERATION),
-        str(TASKS.QUERY_GENERATION),
-        str(TASKS.EMOJI_GENERATION),
-        str(TASKS.MOA_RESPONSE_GENERATION),
-        str(TASKS.FUNCTION_CALLING)
-    }
-    return task is None or (task not in non_billable_tasks)
-
 class ChatCompletionMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if not is_chat_completion_request(request):
@@ -571,9 +559,10 @@ class ChatCompletionMiddleware(BaseHTTPMiddleware):
                 content={"detail": str(e)},
             )
 
-        # Check if this is a billable message
-        task = body.get("metadata", {}).get("task", None)
-        should_track_message = is_billable_task(task)
+        # Check usage limits
+        response = await check_usage_limits(user)
+        if response:
+            return response
 
         metadata = {
             "chat_id": body.pop("chat_id", None),
@@ -678,14 +667,6 @@ class ChatCompletionMiddleware(BaseHTTPMiddleware):
         ]
 
         response = await call_next(request)
-
-        # Track successful billable messages after we get a response
-        if should_track_message and isinstance(response, StreamingResponse):
-            try:
-                MessageUsages.add_message(user_id=user.id)
-            except Exception as e:
-                log.exception("Failed to track message usage: %s", e)
-
         if not isinstance(response, StreamingResponse):
             return response
 
@@ -2411,39 +2392,42 @@ async def verify_dashboard_api_key(api_key: str = Security(api_key_header)):
         raise DashboardAccess()
     return True
 
-class MessageUsageRequest(BaseModel):
-    auth0_id: str
-    start_timestamp: int
-    end_timestamp: int
-
-@app.post("/recode/api/v1/usage/messages")
-async def get_message_usage(
-    request: MessageUsageRequest,
-    verified: bool = Depends(verify_dashboard_api_key)
-):
-    """Get message usage count for a user within a time period"""
+@app.get("/recode/api/v1/usage/messages")
+async def get_user_message_usage(user=Depends(get_current_user)):
+    """Get message usage count for the current user."""
     try:
-        # Get the internal user ID using the cleaned auth0 ID
-        user = Users.get_user_by_oauth_sub(request.auth0_id)
-        if not user:
+        # Get the auth0 ID from the user
+        if not user.oauth_sub:
             raise HTTPException(
                 status_code=404,
                 detail="User not found"
             )
+        if not user.oauth_sub.startswith("oidc@auth0|"):
+            raise HTTPException(
+                status_code=404,
+                detail="Invalid user ID"
+            )
+        # Get the auth0 id by removing the oidc@ prefix
+        auth0_id = str(user.oauth_sub).removeprefix("oidc@")
 
-        # Get message count for the time period
-        message_count = MessageUsages.get_message_count_in_period(
-            user_id=user.id,
-            start_timestamp=request.start_timestamp,
-            end_timestamp=request.end_timestamp
-        )
-
-        return {
-            "oauth_sub": user.oauth_sub,
-            "message_count": message_count,
-            "start_timestamp": request.start_timestamp,
-            "end_timestamp": request.end_timestamp
-        }
+        # Query supabase for the messages used and limits for this user.
+        with get_supa_db() as db:
+            usage_record = (
+                db.query(SupabaseMessageUsage)
+                .filter(SupabaseMessageUsage.auth0_id == auth0_id)
+                .first()
+            )
+            if not usage_record:
+                log.warning(f"User usage record not found for auth0_id: {auth0_id}")
+                return {
+                    "used": 0,
+                    "limit": 0  # Or a default limit value if you have one
+                }
+            log.info(f"Fetched user usage record: used={usage_record.messages_used}, limit={usage_record.messages_limit}")
+            return {
+                "used": usage_record.messages_used,
+                "limit": usage_record.messages_limit
+            }
 
     except HTTPException as e:
         raise e
@@ -2453,6 +2437,32 @@ async def get_message_usage(
             detail=f"Internal server error: {str(e)}"
         )
 
+async def check_usage_limits(user):
+    try:
+        usage = await get_user_message_usage(user)
+        log.info(f"User {user.email} has used {usage['used']} messages out of {usage['limit']}")
+        if usage["used"] >= usage["limit"]:
+            log.info(f"User {user.email} has exceeded their message limit. Used: {usage['used']}, Limit: {usage['limit']}")
+            return JSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN,
+                content={
+                    "detail": "Message limit exceeded",
+                    "used": usage["used"],
+                    "limit": usage["limit"]
+                },
+            )
+    except HTTPException as e:
+        return JSONResponse(
+            status_code=e.status_code,
+            content={"detail": str(e.detail)},
+        )
+    except Exception as e:
+        log.exception(f"Error checking user message usage: {str(e)}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": f"Error checking message usage: {str(e)}"},
+        )
+    return None
 
 @app.get("/manifest.json")
 async def get_manifest_json():

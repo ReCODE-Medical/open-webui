@@ -31,11 +31,18 @@ RECODE_PROMPTS_JSON_FILE = "recode_prompts.json"
 RECODE_MODELS_JSON_FILE = "recode_models.json"
 RECODE_FUNCTIONS_JSON_FILE = "recode_functions.json"
 
+RECODE_RELEASE_000_EP_KNOWLEDGE_FILE = "diagnostic_and_therapeutic_electrophysiology_studies.json"
+REC0DE_RELEASE_010_CARDIO_KNOWLEDGE_NAME = "cardio_procedures_final_by_similarity.json"
+
+# To add new knowledge to a model, you need to ensure the embedding json file is mounted 
+# into /app/backend/recode_knowledge and the knowledge name is added to the mapping below.
 RECODE_KNOWLEDGE_TO_MODEL_MAP = {
-    "RECODE_KNOWLEDGE_diagnostic_and_therapeutic_electrophysiology_studies": [
+    f"{RECODE_KNOWLEDGE_PREFIX}{REC0DE_RELEASE_010_CARDIO_KNOWLEDGE_NAME.split('.')[0]}": [
         "recode-cardio-openai",
-        "recode-electrophysiology-azure"
     ],
+    # f"{RECODE_KNOWLEDGE_PREFIX}{RECODE_RELEASE_000_EP_KNOWLEDGE_FILE.split('.')[0]}": [
+    #     "recode-electrophysiology-azure"
+    # ],
 }
 
 ##################################
@@ -378,18 +385,25 @@ async def recode_knowledge_preprocess(recode_knowledge_dir: str = "recode_knowle
 ##################################
 def create_recode_models_json(recode_knowledges: list[KnowledgeResponse]) -> list[dict]:
     '''Create a JSON file for ReCODE models.'''
-
+    
     with open(RECODE_MODELS_JSON_FILE, "r") as f: 
         models_data = json.load(f)
     
-    # For each knowledge, insert the corresponding models if they are in the mapping.
+    # Debug prints
+    print("Available knowledge collections:", [k.name for k in recode_knowledges])
+    print("Looking for matches in:", RECODE_KNOWLEDGE_TO_MODEL_MAP.keys())
+    
+    # For each knowledge, insert the corresponding models if they are in the mapping
     for knowledge in recode_knowledges:
+        print(f"Checking knowledge: {knowledge.name}")
         if knowledge.name in RECODE_KNOWLEDGE_TO_MODEL_MAP:
+            print(f"Found match for {knowledge.name}")
             model_names = RECODE_KNOWLEDGE_TO_MODEL_MAP[knowledge.name]
-
+            
             for model_name in model_names:
                 for model in models_data:
                     if model["id"] == model_name:
+                        print(f"Updating model {model_name} with knowledge {knowledge.name}")
                         model["info"]["meta"]["knowledge"] = [knowledge.model_dump()]
                         break
     

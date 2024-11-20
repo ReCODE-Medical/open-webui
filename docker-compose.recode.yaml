@@ -9,8 +9,10 @@ services:
       - open-webui:/app/backend/data
       - ./custom_start.sh:/app/backend/custom_start.sh:ro
       - ./custom_start.py:/app/backend/custom_start.py:ro
-      - ./recode_knowledge:/app/backend/recode_knowledge:ro
-      - ./recode_electrophysiology_system_prompt.md:/app/backend/recode_electrophysiology_system_prompt.md:ro
+      # - ./recode_knowledge:/app/backend/recode_knowledge:ro
+      - ./recode_knowledge/data/zhealth/2_embeddings/cardio_procedures_final_by_similarity.json:/app/backend/recode_knowledge/cardio_procedures_final_by_similarity.json:ro
+      # - ./recode_electrophysiology_system_prompt.md:/app/backend/recode_electrophysiology_system_prompt.md:ro
+      - ./recode_system_prompts/recode_cardio_system_prompt.md:/app/backend/recode_cardio_system_prompt.md
       - ./recode_tri_logo.jpg:/app/backend/recode_tri_logo.jpg:ro
       - ./recode_models.json:/app/backend/recode_models.json:ro
       - ./recode_prompts.json:/app/backend/recode_prompts.json:ro

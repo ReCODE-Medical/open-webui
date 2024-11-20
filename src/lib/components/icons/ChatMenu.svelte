@@ -98,7 +98,7 @@
 				<div class="flex items-center">{$i18n.t('Share')}</div>
 			</DropdownMenu.Item>
 
-			<DropdownMenu.Item
+			<!-- <DropdownMenu.Item
 				class="flex  gap-2  items-center px-3 py-2 text-sm  font-medium cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md"
 				on:click={() => {
 					deleteHandler();
@@ -106,7 +106,7 @@
 			>
 				<GarbageBin strokeWidth="2" />
 				<div class="flex items-center">{$i18n.t('Delete')}</div>
-			</DropdownMenu.Item>
+			</DropdownMenu.Item> -->
 
 			<hr class="border-gray-100 dark:border-gray-800 mt-2.5 mb-1.5" />
 

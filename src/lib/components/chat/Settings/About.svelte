@@ -29,7 +29,8 @@
 
 		console.log(version);
 
-		updateAvailable = compareVersion(version.latest, version.current);
+		// updateAvailable = compareVersion(version.latest, version.current);
+		updateAvailable = false;
 		console.log(updateAvailable);
 	};
 

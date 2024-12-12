@@ -7,18 +7,18 @@ services:
     volumes:
       # Reference https://github.com/rndmcnlly/brace/blob/main/compose.yaml for the following:
       - open-webui:/app/backend/data
-      - ${PWD}/custom_start.sh:/app/backend/custom_start.sh:ro
-      - ${PWD}/custom_start.py:/app/backend/custom_start.py:ro
-      # - ${PWD}/recode_knowledge:/app/backend/recode_knowledge:ro
-      - ${PWD}/recode_knowledge/recode_chat_knowledge/cardio_procedures_final_by_similarity.json:/app/backend/recode_knowledge/cardio_procedures_final_by_similarity.json:ro
-      # - ${PWD}/recode_electrophysiology_system_prompt.md:/app/backend/recode_electrophysiology_system_prompt.md:ro
-      - ${PWD}/recode_system_prompts/recode_cardio_system_prompt.md:/app/backend/recode_cardio_system_prompt.md
-      - ${PWD}/recode_tri_logo.jpg:/app/backend/recode_tri_logo.jpg:ro
-      - ${PWD}/recode_models.json:/app/backend/recode_models.json:ro
-      - ${PWD}/recode_prompts.json:/app/backend/recode_prompts.json:ro
-      - ${PWD}/recode_functions.json:/app/backend/recode_functions.json:ro
-      - ${PWD}/recode_functions:/functions:ro
-      - ${PWD}/recode_config.json:/app/backend/data/config.json
+      # - ./custom_start.sh:/app/backend/custom_start.sh:ro
+      # - ./custom_start.py:/app/backend/custom_start.py:ro
+      # # - ./recode_knowledge:/app/backend/recode_knowledge:ro
+      # - ./recode_knowledge/recode_chat_knowledge/cardio_procedures_final_by_similarity.json:/app/backend/recode_knowledge/cardio_procedures_final_by_similarity.json:ro
+      # # - ./recode_electrophysiology_system_prompt.md:/app/backend/recode_electrophysiology_system_prompt.md:ro
+      # - ./recode_system_prompts/recode_cardio_system_prompt.md:/app/backend/recode_cardio_system_prompt.md
+      # - ./recode_tri_logo.jpg:/app/backend/recode_tri_logo.jpg:ro
+      # - ./recode_models.json:/app/backend/recode_models.json:ro
+      # - ./recode_prompts.json:/app/backend/recode_prompts.json:ro
+      # - ./recode_functions.json:/app/backend/recode_functions.json:ro
+      # - ./recode_functions:/functions:ro
+      # - ./recode_config.json:/app/backend/data/config.json
 
     entrypoint: ["bash", "/app/backend/custom_start.sh"]
     depends_on:

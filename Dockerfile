@@ -85,6 +85,27 @@ ENV HF_HOME="/app/backend/data/cache/embedding/models"
 
 WORKDIR /app/backend
 
+# Create necessary directories
+RUN mkdir -p /app/backend/data \
+    /app/backend/recode_knowledge \
+    /app/backend/recode_system_prompts \
+    /app/backend/functions
+
+# Copy all the files that were previously mounted
+COPY ./custom_start.sh /app/backend/custom_start.sh
+COPY ./custom_start.py /app/backend/custom_start.py
+COPY ./recode_knowledge/recode_chat_knowledge/cardio_procedures_final_by_similarity.json /app/backend/recode_knowledge/cardio_procedures_final_by_similarity.json
+COPY ./recode_system_prompts/recode_cardio_system_prompt.md /app/backend/recode_cardio_system_prompt.md
+COPY ./recode_tri_logo.jpg /app/backend/recode_tri_logo.jpg
+COPY ./recode_models.json /app/backend/recode_models.json
+COPY ./recode_prompts.json /app/backend/recode_prompts.json
+COPY ./recode_functions.json /app/backend/recode_functions.json
+COPY ./recode_functions /functions
+COPY ./recode_config.json /app/backend/data/config.json
+
+# Set appropriate permissions
+RUN chown -R $UID:$GID /app/backend
+
 ENV HOME=/root
 # Create user and group if not root
 RUN if [ $UID -ne 0 ]; then \

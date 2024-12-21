@@ -71,7 +71,7 @@ with open(RECODE_FUNCTIONS_JSON_FILE) as f:
     for spec in functions_specifications:
        
        # Grab content from the function file and insert it into the spec.
-        src_function_path = os.path.join("/functions", f"{spec['id']}.py")
+        src_function_path = os.path.join("./functions", f"{spec['id']}.py")
         with open(src_function_path, "r") as f:
             spec['content'] = f.read()
         

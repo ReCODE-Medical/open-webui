@@ -163,6 +163,7 @@ COPY --chown=$UID:$GID ./recode_tri_logo.jpg /app/backend/recode_tri_logo.jpg
 COPY --chown=$UID:$GID ./recode_models.json /app/backend/recode_models.json
 COPY --chown=$UID:$GID ./recode_prompts.json /app/backend/recode_prompts.json
 COPY --chown=$UID:$GID ./recode_functions.json /app/backend/recode_functions.json
+COPY --chown=$UID:$GID ./recode_functions /app/backend/functions
 # The config file below cannot be copied here, as the compose volume /data mount will overwrite it...
 # Instead, the solution is to copy this file to /backend and copy it to the data folder in the custom_start.sh script
 # COPY --chown=$UID:$GID ./recode_config.json /app/backend/data/config.json

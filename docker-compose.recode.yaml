@@ -6,10 +6,10 @@ services:
     container_name: open-webui
     volumes:  # Config mount reference: https://github.com/rndmcnlly/brace/blob/main/compose.yaml 
       - open-webui:/app/backend/data
-      - ./recode_functions:/functions:ro
       #############################################################################################
-      # Current version of Coolify is terrible at mounting files. Dir mounts ^^ are fine, though. #
+      # Current version of Coolify is terrible at mounting files. These are now directly in the Dockerfile.
       #############################################################################################
+      # - ./recode_functions:/functions:ro
       # - ./custom_start.sh:/app/backend/custom_start.sh:ro
       # - ./custom_start.py:/app/backend/custom_start.py:ro
       # - ./recode_knowledge/recode_chat_knowledge/cardio_procedures_final_by_similarity.json:/app/backend/recode_knowledge/cardio_procedures_final_by_similarity.json:ro

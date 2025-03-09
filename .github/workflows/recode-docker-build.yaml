@@ -6,7 +6,8 @@ on:
     branches:
       - main
       - dev
-      - 'recode/v**'  # All your recode/v branches
+      - 'recode/**'  # All your recode branches
+    #   - 'recode/v**'  # All your recode/v branches
 
 env:
   REGISTRY: recode.azurecr.io

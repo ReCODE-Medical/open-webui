@@ -1,0 +1,156 @@
+services:
+  open-webui:
+    image: recode.azurecr.io/recode-chat:recode-v0-latest
+    container_name: open-webui
+    volumes:  # Config mount reference: https://github.com/rndmcnlly/brace/blob/main/compose.yaml 
+      - open-webui:/app/backend/data
+      #############################################################################################
+      # Current version of Coolify is terrible at mounting files. These are now directly in the Dockerfile.
+      #############################################################################################
+      # - ./recode_functions:/functions:ro
+      # - ./custom_start.sh:/app/backend/custom_start.sh:ro
+      # - ./custom_start.py:/app/backend/custom_start.py:ro
+      # - ./recode_knowledge/recode_chat_knowledge/cardio_procedures_final_by_similarity.json:/app/backend/recode_knowledge/cardio_procedures_final_by_similarity.json:ro
+      # - ./recode_system_prompts/recode_cardio_system_prompt.md:/app/backend/recode_cardio_system_prompt.md
+      # - ./recode_tri_logo.jpg:/app/backend/recode_tri_logo.jpg:ro
+      # - ./recode_models.json:/app/backend/recode_models.json:ro
+      # - ./recode_prompts.json:/app/backend/recode_prompts.json:ro
+      # - ./recode_functions.json:/app/backend/recode_functions.json:ro
+      # - ./recode_config.json:/app/backend/data/config.json
+
+    entrypoint: ["bash", "/app/backend/custom_start.sh"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      tika:
+        condition: service_started
+    ports:
+      - 8080:8080
+    environment:
+      ENV: prod
+      WEBUI_NAME: ReCODE Chat
+      WEBUI_SECRET_KEY: 
+      RECODE_DASHBOARD_API_KEY: ${RECODE_DASHBOARD_API_KEY}
+      
+      ENABLE_SIGNUP: "false"
+      ENABLE_OAUTH_SIGNUP: true
+      ENABLE_LOGIN_FORM: "false"
+
+      OAUTH_CLIENT_ID: S6QhjahAqW7usSlvPemUex7GrC8y0wvF
+      OAUTH_CLIENT_SECRET: lkLP-jbHZPw_v-D9bMuWCE7CC8n-EbfWH7SRDk-K5iimt6NBTmJNaYbJAvhYtjNd
+      OPENID_PROVIDER_URL: https://auth.recodemedical.com/.well-known/openid-configuration
+      OPENID_REDIRECT_URI: ${RECODE_OPENID_REDIRECT_URI}
+      
+      DEFAULT_USER_ROLE: user
+      USER_PERMISSIONS_CHAT_DELETION: "false"
+      USER_PERMISSIONS_CHAT_EDITING: "false"
+      USER_PERMISSIONS_CHAT_TEMPORARY: "false"
+      ENABLE_MESSAGE_RATING: true
+      ENABLE_COMMUNITY_SHARING: "false"
+      ENABLE_OLLAMA_API: "false"
+      ENABLE_OPENAI_API: true
+      
+      OPENAI_API_KEY: ${RECODE_OPENAI_API_KEY}
+      RAG_OPENAI_API_KEY: ${RECODE_OPENAI_API_KEY}
+      AUDIO_STT_OPENAI_API_KEY: ${RECODE_OPENAI_API_KEY}
+      AUDIO_TTS_OPENAI_API_KEY: ${RECODE_OPENAI_API_KEY}
+      AZURE_OPENAI_API_KEY_GPT: ${RECODE_AZURE_OPENAI_API_KEY_GPT}
+      AZURE_OPENAI_ENDPOINT_GPT: ${RECODE_AZURE_OPENAI_ENDPOINT_GPT}
+      AZURE_OPENAI_DEPLOYMENT_NAME_GPT: ${RECODE_AZURE_OPENAI_DEPLOYMENT_NAME_GPT}
+      AZURE_OPENAI_API_VERSION_GPT: ${RECODE_AZURE_OPENAI_API_VERSION_GPT}
+      AUDIO_STT_ENGINE: openai
+      AUDIO_TTS_ENGINE: openai
+      
+      DATABASE_URL: ${RECODE_DATABASE_URI}
+      SUPABASE_DATABASE_URL: ${RECODE_SUPABASE_DATABASE_URI}
+      DATABASE_POOL_SIZE: 10
+      DATABASE_POOL_MAX_OVERFLOW: 20
+      DATABASE_POOL_TIMEOUT: 30
+
+      CONTENT_EXTRACTION_ENGINE: tika
+      
+      VECTOR_DB: qdrant
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      RAG_EMBEDDING_ENGINE: openai
+      RAG_EMBEDDING_MODEL: text-embedding-3-large
+      RAG_EMBEDDING_OPENAI_BATCH_SIZE: 2048
+      
+      ENABLE_MODEL_FILTER: true
+      MODEL_FILTER_LIST: "recode-cardio-openai;recode-vascular-surgery-openai;recode-ortho-openai"
+      DEFAULT_MODELS: "recode-cardio-openai"
+      RESET_CONFIG_ON_START: "false"
+      
+      WEBSOCKET_MANAGER: redis
+      WEBSOCKET_REDIS_URL: redis://redis:6379/0
+
+    restart: unless-stopped
+
+  # External Postgres database for all data storage and user management.
+  postgres:
+    image: postgres:17-alpine
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${RECODE_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${RECODE_POSTGRES_PASSWORD}
+      POSTGRES_DB: recode-db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data  # TODO: map to external dir so data is not lost and more space is available
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d recode-db"]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+
+  # Postgres Admin Dashboard.
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${RECODE_PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${RECODE_PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: "True"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "True"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+
+  # Redis for caching and websocket manager.
+  redis:
+    image: redis:alpine
+    container_name: redis
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+    restart: always
+
+  # Vector database.
+  qdrant:
+    image: qdrant/qdrant
+    container_name: qdrant
+    volumes:
+      - qdrant-data:/qdrant/storage
+
+  # Apache Tika for extracting text from files.
+  tika:
+    image: apache/tika:latest-full
+    container_name: apache-tika
+    restart: always
+
+volumes:
+  open-webui: {}
+  redis-data: {}
+  postgres-data: {}
+  pgadmin-data: {}
+  qdrant-data: {}

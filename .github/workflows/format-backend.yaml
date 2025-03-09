@@ -5,10 +5,14 @@ on:
     branches:
       - main
       - dev
+      - 'recode/v**'
+      - 'recode/dev/v**'
   pull_request:
     branches:
       - main
       - dev
+      - 'recode/v**'
+      - 'recode/dev/v**'
 
 jobs:
   build:

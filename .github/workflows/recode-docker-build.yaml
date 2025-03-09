@@ -1,0 +1,90 @@
+name: Build ReCODE Docker Image and Push to Azure Container Registry
+
+on:
+  workflow_dispatch:  # Manual trigger
+  push:
+    branches:
+      - 'recode/v**'
+  pull_request:
+    branches:
+      - 'recode/v**'
+      - 'recode/dev/v**'
+
+env:
+  REGISTRY: recode.azurecr.io
+  IMAGE_NAME: recode-chat
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          token: ${{ secrets.RECODE_ACCESS_TOKEN }}
+
+      - name: Extract branch name, version, and SHA
+        shell: bash
+        run: |
+          # Extract branch name and convert / to -
+          BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | sed 's/\//-/g')
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+          
+          # Extract short SHA
+          SHA_SHORT=$(git rev-parse --short HEAD)
+          echo "SHA_SHORT=$SHA_SHORT" >> $GITHUB_ENV
+          
+          # Check if this is a recode version branch (recode/v0.*, recode/v1.*, etc)
+          if [[ "$GITHUB_REF" =~ ^refs/heads/recode/v([0-9]+) ]]; then
+            # Extract the major version number
+            MAJOR_VERSION="${BASH_REMATCH[1]}"
+            echo "IS_VERSION_BRANCH=true" >> $GITHUB_ENV
+            echo "MAJOR_VERSION=$MAJOR_VERSION" >> $GITHUB_ENV
+          else
+            echo "IS_VERSION_BRANCH=false" >> $GITHUB_ENV
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.AZURE_REGISTRY_USERNAME }}
+          password: ${{ secrets.AZURE_REGISTRY_PASSWORD }}
+
+      - name: Set up tag list
+        id: tags
+        run: |
+          # Always add these standard tags
+          TAGS="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BRANCH_NAME }}"
+          TAGS="$TAGS,${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BRANCH_NAME }}-${{ env.SHA_SHORT }}"
+          
+          # Add version-specific latest tag if this is a recode version branch
+          if [[ "${{ env.IS_VERSION_BRANCH }}" == "true" ]]; then
+            TAGS="$TAGS,${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:recode-v${{ env.MAJOR_VERSION }}-latest"
+          fi
+          
+          echo "TAGS=$TAGS" >> $GITHUB_ENV
+          
+          # Determine if we should push (only on push events, not PRs)
+          if [[ "${{ github.event_name }}" == "push" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "SHOULD_PUSH=true" >> $GITHUB_ENV
+          else
+            echo "SHOULD_PUSH=false" >> $GITHUB_ENV
+          fi
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: ${{ env.SHOULD_PUSH }}
+          platforms: linux/amd64
+          tags: ${{ env.TAGS }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BRANCH_NAME }}-cache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.BRANCH_NAME }}-cache,mode=max
+          build-args: |
+            BUILD_HASH=${{ github.sha }}

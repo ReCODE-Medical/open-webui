@@ -1,3 +1,8 @@
+# ====== ReCODE CHAT v1 ======
+ReCODE Chat v1 is is branching off of OWUI at release `0.5.20`, which is commit hash `3b70cd64d7fa6902e8c79cf8dcbf3c7e84cf704b`.
+
+It is a rebase of the key alterations made from the last release branch point, in `recode/v0`.
+
 # Open WebUI 👋
 
 ![GitHub stars](https://img.shields.io/github/stars/open-webui/open-webui?style=social)

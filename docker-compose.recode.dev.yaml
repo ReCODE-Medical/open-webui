@@ -1,0 +1,323 @@
+# TODO: A WIP dockerfile from updating all your stuff for V1.0
+
+services:
+  open-webui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: open-webui
+    volumes:
+      - open-webui:/app/backend/data
+    # entrypoint: ["bash", "/app/backend/custom_start.sh"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      tika:
+        condition: service_started
+    ports:
+      - 8080:8080
+    environment:  
+      # This only defined default overrides. All excluded vars are their defaults, defined by
+      # https://docs.openwebui.com/getting-started/env-configuration
+
+      # JUST FOR DEV
+      ENABLE_SIGNUP: "true"
+      ENABLE_LOGIN_FORM: "true"
+
+      # SECRETS
+      OPENID_REDIRECT_URI: ${RECODE_OPENID_REDIRECT_URI}
+
+      OPENAI_API_KEY: ${RECODE_OPENAI_API_KEY}
+      RAG_OPENAI_API_KEY: ${RECODE_OPENAI_API_KEY}
+      AUDIO_STT_OPENAI_API_KEY: ${RECODE_OPENAI_API_KEY}
+      AUDIO_TTS_OPENAI_API_KEY: ${RECODE_OPENAI_API_KEY}
+      AZURE_OPENAI_API_KEY_GPT: ${RECODE_AZURE_OPENAI_API_KEY_GPT}
+      AZURE_OPENAI_ENDPOINT_GPT: ${RECODE_AZURE_OPENAI_ENDPOINT_GPT}
+      AZURE_OPENAI_DEPLOYMENT_NAME_GPT: ${RECODE_AZURE_OPENAI_DEPLOYMENT_NAME_GPT}
+      AZURE_OPENAI_API_VERSION_GPT: ${RECODE_AZURE_OPENAI_API_VERSION_GPT}
+      WEBHOOK_URL: ${RECODE_WEBHOOK_URL}
+
+      OAUTH_CLIENT_ID: ${RECODE_OAUTH_CLIENT_ID}
+      OAUTH_CLIENT_SECRET: ${RECODE_OAUTH_CLIENT_SECRET}
+
+      AZURE_STORAGE_ENDPOINT: ${RECODE_AZURE_STORAGE_ENDPOINT}
+      AZURE_STORAGE_CONTAINER_NAME: ${RECODE_AZURE_STORAGE_CONTAINER_NAME}
+      AZURE_STORAGE_KEY: ${RECODE_AZURE_STORAGE_KEY}
+
+      DATABASE_URL: ${RECODE_DATABASE_URI}
+      SUPABASE_DATABASE_URL: ${RECODE_SUPABASE_DATABASE_URI}
+
+      # APP / BACKEND
+      ENV: prod
+      WEBUI_NAME: ReCODE Chat
+      WEBUI_URL: https://chat.recodemedical.com
+      WEBUI_SECRET_KEY: 
+      
+      # SIGNUP
+      # ENABLE_SIGNUP: "false"
+      # ENABLE_LOGIN_FORM: "false"
+      
+      # CHAT CONTROLS
+      ENABLE_CHANNELS: true
+      ADMIN_EMAIL: recodemedical@gmail.com
+      DEFAULT_MODELS: "recode-cardio-openai" # TODO: update
+      DEFAULT_USER_ROLE: user
+      WEBUI_BUILD_HASH: recode-v1.0
+      # TODO: ADD YOUR BANNERS HERE ABOUT APP USAGE (power user `/`, channels, etc.)
+      WEBUI_BANNERS: |
+        [
+          {
+            "id": "1",
+            "type": "warning",
+            "title": "Your messages are stored.",
+            "content": "Your messages are stored and may be reviewed by human people. LLM's are prone to hallucinations, check sources.",
+            "dismissible": true,
+            "timestamp": 1000
+          },
+        ]
+      JWT_EXPIRES_IN: 6h
+      
+      # LLM PROVIDERS
+      ENABLE_OLLAMA_API: "false"
+      ENABLE_OPENAI_API: true
+
+      # TASKS
+      TITLE_GENERATION_PROMPT_TEMPLATE: |
+        ### Task:
+        Generate a concise, 3-5 word title for the prompt summarizing the chat history.
+        ### Guidelines:
+        - You are a medical coding assistant, so the title should contain relevant coding specifics, as applicable.
+        - The title should clearly represent the main theme or subject of the conversation.
+        - Avoid quotation marks or special formatting.
+        - Write the title in the chat's primary language; default to English if multilingual.
+        - Prioritize accuracy over excessive creativity; keep it clear and simple.
+        ### Output:
+        JSON format: { "title": "your concise title here" }
+        ### Examples:
+        - { "title": "Stock Market Trends" },
+        - { "title": "Perfect Chocolate Chip Recipe" },
+        - { "title": "Evolution of Music Streaming" },
+        - { "title": "Remote Work Productivity Tips" },
+        - { "title": "Artificial Intelligence in Healthcare" },
+        - { "title": "Video Game Development Insights" }
+
+        ### Chat History:
+        <chat_history>
+        {{MESSAGES:END:2}}
+        </chat_history>
+      AUTOCOMPLETE_GENERATION_PROMPT_TEMPLATE: | 
+        ### Task:
+        You are an autocompletion system for a medical coding AI-assistant. Continue the text in `<text>` based on the **completion type** in `<type>` and the given language.  
+
+        ### **Instructions**:
+        1. Analyze `<text>` for context and meaning.  
+        2. Use `<type>` to guide your output:  
+          - **General**: Provide a natural, concise continuation.  
+          - **Search Query**: Complete as if generating a realistic search query.  
+        3. Start as if you are directly continuing `<text>`. Do **not** repeat, paraphrase, or respond as a model. Simply complete the text.  
+        4. Ensure the continuation:
+          - Flows naturally from `<text>`.  
+          - Avoids repetition, overexplaining, or unrelated ideas.  
+        5. If unsure, return: `{ "text": "" }`.  
+
+        ### **Output Rules**:
+        - Respond only in JSON format: `{ "text": "<your_completion>" }`.
+
+        ### **Examples**:
+        #### Example 1:  
+        Input:  
+        <type>General</type>  
+        <text>The sun was setting over the horizon, painting the sky</text>  
+        Output:  
+        { "text": "with vibrant shades of orange and pink." }
+
+        #### Example 2:  
+        Input:  
+        <type>Search Query</type>  
+        <text>Top-rated restaurants in</text>  
+        Output:  
+        { "text": "New York City for Italian cuisine." }  
+
+        ---
+        ### Context:
+        <chat_history>
+        {{MESSAGES:END:6}}
+        </chat_history>
+        <type>{{TYPE}}</type>  
+        <text>{{PROMPT}}</text>  
+        #### Output:          
+      ENABLE_EVALUATION_ARENA_MODELS: "false"
+      ENABLE_COMMUNITY_SHARING: "false"
+      TAGS_GENERATION_PROMPT_TEMPLATE: |
+        ### Task:
+        You are a medical coding assistant. Generate 1-3 broad tags categorizing the main medical coding themes of the chat history, along with 1-3 more specific subtopic tags.
+
+        ### Guidelines:
+        - Start with high-level medical coding domains (e.g. ICD-10, CPT, HCPCS, DRG, Billing, Compliance, Documentation, Reimbursement)
+        - Consider including relevant medical specialties if they are strongly represented (e.g. Cardiology, Orthopedics, Vascular Surgery)
+        - Include specific coding concepts when applicable (e.g. E/M Coding, Modifiers, CCI Edits, Medical Necessity)
+        - If content is too short (less than 3 messages) or too diverse, use only ["Medical Coding"]
+        - Use the chat's primary language; default to English if multilingual
+        - Prioritize accuracy over specificity
+
+        ### Output:
+        JSON format: { "tags": ["tag1", "tag2", "tag3"] }
+
+        ### Chat History:
+        <chat_history>
+        {{MESSAGES:END:6}}
+        </chat_history>
+      ENABLE_API_KEY_ENDPOINT_RESTRICTIONS: true
+      API_KEY_ALLOWED_ENDPOINTS: "/api/chat/completions"  # API KEY IS GENERATED IN UI
+      ENABLE_FORWARD_USER_INFO_HEADERS: true
+      WEBUI_SESSION_COOKIE_SECURE: true
+      WEBUI_AUTH_COOKIE_SECURE: true
+      RAG_EMBEDDING_MODEL_AUTO_UPDATE: "false"
+      RAG_RERANKING_MODEL_AUTO_UPDATE: "false"
+
+      # RAG
+      VECTOR_DB: qdrant
+      RAG_EMBEDDING_ENGINE: openai
+      RAG_EMBEDDING_MODEL: text-embedding-3-large
+      # TODO: Enable eventually:
+      ENABLE_RAG_HYBRID_SEARCH: "false" 
+      # RAG_RERANKING_MODEL: # TODO: USE!
+      CONTENT_EXTRACTION_ENGINE: tika
+      TIKA_SERVER_URL: http://tika:9998
+      RAG_TOP_K: 12  # TODO: Fine-tune.
+      RAG_TEMPLATE: |
+        ### Task:
+        Respond to the user query using the provided context.
+
+        ### Guidelines:
+        - If you don't know the answer, clearly state that.
+        - If uncertain, ask the user for clarification.
+        - Respond in the same language as the user's query.
+        - If the context is unreadable or of poor quality, inform the user and provide the best possible answer.
+        - If the answer isn't present in the context but you possess the knowledge, explain this to the user and provide the answer using your own understanding.
+        - Do not use XML tags in your response.
+
+        ### Output:
+        Provide a clear and direct response to the user's query.
+
+        <context>
+        {{CONTEXT}}
+        </context>
+
+        <user_query>
+        {{QUERY}}
+        </user_query>
+      
+      RAG_FILE_MAX_SIZE: 30 # MB
+      RAG_FILE_MAX_COUNT: 5
+      RAG_EMBEDDING_OPENAI_BATCH_SIZE: 2048
+      QDRANT_URI: http://qdrant:6333
+
+      # AUDIO
+      AUDIO_STT_ENGINE: openai
+      AUDIO_STT_MODEL: whisper-1
+      AUDIO_TTS_ENGINE: openai
+      AUDIO_TTS_MODEL: tts-1
+      # TODO: Use Azure for STT and TTS! 
+
+      # OAUTH
+      ENABLE_OAUTH_SIGNUP: true
+      # TODO: maybe eventually use 
+      # ENABLE_OAUTH_ROLE_MANAGEMENT: true
+      # ENABLE_OAUTH_GROUP_MANAGEMENT: true
+      OPENID_PROVIDER_URL: https://auth.recodemedical.com/.well-known/openid-configuration
+      
+
+      # USER PERMISSIONS
+      USER_PERMISSIONS_CHAT_DELETE: "false"
+      USER_PERMISSIONS_CHAT_EDIT: "false"
+      USER_PERMISSIONS_CHAT_TEMPORARY: "false"
+
+      # MISCELLANEOUS
+      STORAGE_PROVIDER: azure
+      
+      DATABASE_POOL_SIZE: 10
+      DATABASE_POOL_MAX_OVERFLOW: 20
+      DATABASE_POOL_TIMEOUT: 30
+
+      ENABLE_WEBSOCKET_SUPPORT: true
+      WEBSOCKET_MANAGER: redis
+      REDIS_URL: redis://redis:6379/0
+      WEBSOCKET_REDIS_URL: redis://redis:6379/0
+
+    restart: unless-stopped
+
+  # External Postgres database for all data storage and user management.
+  # TODO: Figure out how to back this up frequently, pushing to S3 or something similar.
+  # TODO: Figure out how to set up automatic recovery from backups.
+  postgres:
+    image: postgres:17-alpine
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${RECODE_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${RECODE_POSTGRES_PASSWORD}
+      POSTGRES_DB: recode-db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d recode-db"]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+
+  # Websocket manager (enables horizontal scaling of the websocket server).
+  redis:
+    image: redis:alpine
+    container_name: redis
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+
+  # Vector database.
+  qdrant:
+    build:
+      context: .
+      dockerfile: qdrant.Dockerfile
+    container_name: qdrant
+    restart: unless-stopped
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 30s
+      retries: 20
+      start_period: 30s
+      timeout: 10s
+
+  # Apache Tika for extracting text from files.
+  tika:
+    image: apache/tika:latest-full
+    container_name: tika
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9998/tika | grep -q 'This is Tika Server'"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  open-webui: {}
+  redis-data: {}
+  postgres-data: {}
+  qdrant-data: {}

@@ -168,7 +168,7 @@
 							{#if mode === 'signup'}
 								<div class=" mt-1 text-xs font-medium text-gray-500">
 									ⓘ 
-									{$i18n.t('Visit ')}
+									{$i18n.t('For support, contact ')}
 									<a
 										href="https://www.recodemedical.com"
 										target="_blank"
@@ -176,12 +176,19 @@
 									>
 										{$i18n.t('ReCODE Medical')}
 									</a>
-									{$i18n.t(' to register and manage subscriptions.')}
+									{$i18n.t(' at ')}
+									<a
+										href="mailto:support@recodemedical.com"
+										target="_blank"
+										class="underline"
+									>
+										support@recodemedical.com
+									</a>.
 								</div>
 							{:else}
 								<div class=" mt-1 text-xs font-medium text-gray-500">
 									ⓘ 
-									{$i18n.t('Visit ')}
+									{$i18n.t('For support, contact ')}
 									<a
 										href="https://www.recodemedical.com"
 										target="_blank"
@@ -189,7 +196,14 @@
 									>
 										{$i18n.t('ReCODE Medical')}
 									</a>
-									{$i18n.t(' for account management.')}
+									{$i18n.t(' at ')}
+									<a
+										href="mailto:support@recodemedical.com"
+										target="_blank"
+										class="underline"
+									>
+										support@recodemedical.com
+									</a>.
 								</div>
 							{/if}
 						</div>

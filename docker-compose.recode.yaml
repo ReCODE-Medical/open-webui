@@ -41,11 +41,13 @@ services:
       ENABLE_SIGNUP: "false"
       ENABLE_OAUTH_SIGNUP: true
       ENABLE_LOGIN_FORM: "false"
-
-      OAUTH_CLIENT_ID: S6QhjahAqW7usSlvPemUex7GrC8y0wvF
-      OAUTH_CLIENT_SECRET: lkLP-jbHZPw_v-D9bMuWCE7CC8n-EbfWH7SRDk-K5iimt6NBTmJNaYbJAvhYtjNd
-      OPENID_PROVIDER_URL: https://auth.recodemedical.com/.well-known/openid-configuration
+      
+      ENABLE_USAGE_LIMITS: "false"
+      OAUTH_CLIENT_ID: ${RECODE_OAUTH_CLIENT_ID}
+      OAUTH_CLIENT_SECRET: ${RECODE_OAUTH_CLIENT_SECRET}
+      OPENID_PROVIDER_URL: ${RECODE_OPENID_PROVIDER_URL}
       OPENID_REDIRECT_URI: ${RECODE_OPENID_REDIRECT_URI}
+      # OPENID_REDIRECT_URI: http://localhost:8080/oauth/oidc/callback  # For development
       
       DEFAULT_USER_ROLE: user
       USER_PERMISSIONS_CHAT_DELETION: "false"
@@ -69,6 +71,7 @@ services:
       
       DATABASE_URL: ${RECODE_DATABASE_URI}
       SUPABASE_DATABASE_URL: ${RECODE_SUPABASE_DATABASE_URI}
+
       DATABASE_POOL_SIZE: 10
       DATABASE_POOL_MAX_OVERFLOW: 20
       DATABASE_POOL_TIMEOUT: 30

@@ -1,10 +1,20 @@
 import time
+import logging
 from typing import Optional
+from concurrent.futures import ThreadPoolExecutor
 
-from open_webui.apps.webui.internal.db import Base, JSONField, get_db
+from open_webui.apps.webui.internal.db import (
+    Base, 
+    get_db,
+    JSONField,
+    get_supa_db, 
+    init_supa_table
+)
 from open_webui.apps.webui.models.chats import Chats
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import BigInteger, Column, String, Text
+
+log = logging.getLogger(__name__)
 
 ####################
 # User DB Schema
@@ -75,6 +85,18 @@ class UserUpdateForm(BaseModel):
 
 
 class UsersTable:
+    def __init__(self):
+        init_supa_table([User.__table__])
+        self.supa_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="supa_user_worker")
+
+    def _async_supa_write(self, operation):
+        """Helper method to execute Supabase operations asynchronously"""
+        self.supa_executor.submit(operation)
+
+    def __del__(self):
+        """Cleanup thread pool on deletion"""
+        self.supa_executor.shutdown(wait=False)
+
     def insert_new_user(
         self,
         id: str,
@@ -102,6 +124,18 @@ class UsersTable:
             db.add(result)
             db.commit()
             db.refresh(result)
+
+            # Async write to Supabase with same ID
+            def supa_insert():
+                try:
+                    with get_supa_db() as supa_db:
+                        supa_result = User(**user.model_dump())
+                        supa_db.add(supa_result)
+                        supa_db.commit()
+                except Exception as e:
+                    log.warning(f"Supabase user write failed: {e}")
+            
+            self._async_supa_write(supa_insert)
             if result:
                 return user
             else:
@@ -174,6 +208,17 @@ class UsersTable:
                 db.query(User).filter_by(id=id).update({"role": role})
                 db.commit()
                 user = db.query(User).filter_by(id=id).first()
+                
+                # Async update in Supabase
+                def supa_update():
+                    try:
+                        with get_supa_db() as supa_db:
+                            supa_db.query(User).filter_by(id=id).update({"role": role})
+                            supa_db.commit()
+                    except Exception as e:
+                        log.warning(f"Supabase role update failed: {e}")
+                
+                self._async_supa_write(supa_update)
                 return UserModel.model_validate(user)
         except Exception:
             return None
@@ -189,6 +234,19 @@ class UsersTable:
                 db.commit()
 
                 user = db.query(User).filter_by(id=id).first()
+                
+                # Async update in Supabase
+                def supa_update():
+                    try:
+                        with get_supa_db() as supa_db:
+                            supa_db.query(User).filter_by(id=id).update(
+                                {"profile_image_url": profile_image_url}
+                            )
+                            supa_db.commit()
+                    except Exception as e:
+                        log.warning(f"Supabase profile image update failed: {e}")
+                
+                self._async_supa_write(supa_update)
                 return UserModel.model_validate(user)
         except Exception:
             return None
@@ -196,12 +254,26 @@ class UsersTable:
     def update_user_last_active_by_id(self, id: str) -> Optional[UserModel]:
         try:
             with get_db() as db:
+                current_time = int(time.time())
                 db.query(User).filter_by(id=id).update(
-                    {"last_active_at": int(time.time())}
+                    {"last_active_at": current_time}
                 )
                 db.commit()
 
                 user = db.query(User).filter_by(id=id).first()
+                
+                # Async update in Supabase
+                def supa_update():
+                    try:
+                        with get_supa_db() as supa_db:
+                            supa_db.query(User).filter_by(id=id).update(
+                                {"last_active_at": current_time}
+                            )
+                            supa_db.commit()
+                    except Exception as e:
+                        log.warning(f"Supabase last active update failed: {e}")
+                
+                self._async_supa_write(supa_update)
                 return UserModel.model_validate(user)
         except Exception:
             return None
@@ -215,6 +287,17 @@ class UsersTable:
                 db.commit()
 
                 user = db.query(User).filter_by(id=id).first()
+                
+                # Async update in Supabase
+                def supa_update():
+                    try:
+                        with get_supa_db() as supa_db:
+                            supa_db.query(User).filter_by(id=id).update({"oauth_sub": oauth_sub})
+                            supa_db.commit()
+                    except Exception as e:
+                        log.warning(f"Supabase oauth_sub update failed: {e}")
+                
+                self._async_supa_write(supa_update)
                 return UserModel.model_validate(user)
         except Exception:
             return None
@@ -226,6 +309,17 @@ class UsersTable:
                 db.commit()
 
                 user = db.query(User).filter_by(id=id).first()
+                
+                # Async update in Supabase
+                def supa_update():
+                    try:
+                        with get_supa_db() as supa_db:
+                            supa_db.query(User).filter_by(id=id).update(updated)
+                            supa_db.commit()
+                    except Exception as e:
+                        log.warning(f"Supabase user update failed: {e}")
+                
+                self._async_supa_write(supa_update)
                 return UserModel.model_validate(user)
                 # return UserModel(**user.dict())
         except Exception:
@@ -241,6 +335,17 @@ class UsersTable:
                     # Delete User
                     db.query(User).filter_by(id=id).delete()
                     db.commit()
+                    
+                    # Async delete in Supabase
+                    def supa_delete():
+                        try:
+                            with get_supa_db() as supa_db:
+                                supa_db.query(User).filter_by(id=id).delete()
+                                supa_db.commit()
+                        except Exception as e:
+                            log.warning(f"Supabase user delete failed: {e}")
+                    
+                    self._async_supa_write(supa_delete)
 
                 return True
             else:
@@ -253,6 +358,17 @@ class UsersTable:
             with get_db() as db:
                 result = db.query(User).filter_by(id=id).update({"api_key": api_key})
                 db.commit()
+                
+                # Async update in Supabase
+                def supa_update():
+                    try:
+                        with get_supa_db() as supa_db:
+                            supa_db.query(User).filter_by(id=id).update({"api_key": api_key})
+                            supa_db.commit()
+                    except Exception as e:
+                        log.warning(f"Supabase api_key update failed: {e}")
+                
+                self._async_supa_write(supa_update)
                 return True if result == 1 else False
         except Exception:
             return False

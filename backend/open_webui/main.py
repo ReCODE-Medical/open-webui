@@ -167,7 +167,7 @@ if SAFE_MODE:
 logging.basicConfig(stream=sys.stdout, level=GLOBAL_LOG_LEVEL)
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MAIN"])
-
+ENABLE_USAGE_LIMITS = os.getenv("ENABLE_USAGE_LIMITS", "false").lower() == "true"
 
 class SPAStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
@@ -2438,6 +2438,10 @@ async def get_user_message_usage(user=Depends(get_current_user)):
         )
 
 async def check_usage_limits(user):
+    # Check if usage limits are globally disabled
+    if not ENABLE_USAGE_LIMITS:
+        return None
+
     try:
         usage = await get_user_message_usage(user)
         log.info(f"User {user.email} has used {usage['used']} messages out of {usage['limit']}")

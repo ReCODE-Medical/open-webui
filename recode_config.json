@@ -64,7 +64,7 @@
     },
     "task": {
         "model": {
-            "default": "",
+            "default": "chatgpt-4o-latest",
             "external": ""
         },
         "title": {

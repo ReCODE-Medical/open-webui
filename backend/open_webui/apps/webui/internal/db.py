@@ -109,6 +109,14 @@ Session = scoped_session(MainSessionLocal)
 SupaSession = scoped_session(SupaSessionLocal)
 
 
+def init_supa_table(tables: list):
+    try:
+        Base.metadata.create_all(bind=supa_engine, tables=tables)
+        log.info("Supabase tables initialized successfully")
+    except Exception as e:
+        log.warning(f"Failed to initialize Supabase tables: {e}")
+        raise
+
 def get_main_session():
     db = MainSessionLocal()
     try:

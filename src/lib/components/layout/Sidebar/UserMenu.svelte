@@ -16,12 +16,16 @@
 	export let role = '';
 	export let className = 'max-w-[240px]';
 
+	// Toggle usage limits UI
+	let enableUsageLimits = false;
+	
 	// Initialize the usage values
 	let messageLimit = 0;
 	let usedMessages = 0;
 
 	// Function to fetch usage data
 	async function fetchUsageData() {
+		if (!enableUsageLimits) return; // Do nothing if limits are disabled
 		try {
 			const response = await getMessageUsage();
 			usedMessages = response.used;
@@ -34,7 +38,7 @@
 	// Handle dropdown open state changes
 	function handleOpenChange(state: boolean) {
 		show = state;
-		if (state) {
+		if (state && enableUsageLimits) { // Only fetch if enabled
 			fetchUsageData();
 		}
 		dispatch('change', state);
@@ -42,7 +46,9 @@
 
 	// Handle ring mount event
 	function handleRingMount() {
-		fetchUsageData();
+		if (enableUsageLimits) { // Only fetch if enabled
+			fetchUsageData();
+		}
 	}
 
 	const dispatch = createEventDispatcher();
@@ -69,21 +75,23 @@
 			align="start"
 			transition={(e) => fade(e, { duration: 100 })}
 		>
-			<button
-				class="flex rounded-md py-2 px-3 w-full hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-				on:click={openNewWindow}
-			>
-				<div class="self-center mr-3">
-					<UsageProgressRing 
-						used={usedMessages} 
-						limit={messageLimit} 
-						on:ringMount={handleRingMount}
-					/>
-				</div>
-				<div class="self-center font-medium">
-					{$i18n.t('Usage')}: {usedMessages} {$i18n.t('out of')} {messageLimit}
-				</div>
-			</button>
+			{#if enableUsageLimits}
+				<button
+					class="flex rounded-md py-2 px-3 w-full hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+					on:click={openNewWindow}
+				>
+					<div class="self-center mr-3">
+						<UsageProgressRing 
+							used={usedMessages} 
+							limit={messageLimit} 
+							on:ringMount={handleRingMount}
+						/>
+					</div>
+					<div class="self-center font-medium">
+						{$i18n.t('Usage')}: {usedMessages} {$i18n.t('out of')} {messageLimit}
+					</div>
+				</button>
+			{/if}
 			<button
 				class="flex rounded-md py-2 px-3 w-full hover:bg-gray-50 dark:hover:bg-gray-800 transition"
 				on:click={async () => {

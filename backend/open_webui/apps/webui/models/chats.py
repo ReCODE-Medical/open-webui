@@ -6,7 +6,12 @@ from typing import Optional
 from functools import wraps
 from concurrent.futures import ThreadPoolExecutor
 
-from open_webui.apps.webui.internal.db import Base, get_db, get_supa_db, supa_engine
+from open_webui.apps.webui.internal.db import (
+    Base, 
+    get_db, 
+    get_supa_db, 
+    init_supa_table
+)
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import BigInteger, Boolean, Column, String, Text
 from sqlalchemy.exc import OperationalError
@@ -31,17 +36,6 @@ class Chat(Base):
 
     share_id = Column(Text, unique=True, nullable=True)
     archived = Column(Boolean, default=False)
-
-
-# Initialize Supabase tables
-try:
-    Base.metadata.create_all(bind=supa_engine, tables=[Chat.__table__])
-    log.info("Supabase tables initialized successfully")
-except Exception as e:
-    log.warning(f"Failed to initialize Supabase tables: {e}")
-
-# Thread pool for handling Supabase operations
-supa_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="supa_worker")
 
 
 class ChatModel(BaseModel):
@@ -92,13 +86,17 @@ class ChatTitleIdResponse(BaseModel):
 
 
 class ChatTable:
+    def __init__(self):
+        init_supa_table([Chat.__table__])
+        self.supa_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="supa_chat_worker")
+
     def _async_supa_write(self, operation):
         """Helper method to execute Supabase operations asynchronously"""
-        supa_executor.submit(operation)
+        self.supa_executor.submit(operation)
 
     def __del__(self):
         """Cleanup thread pool on deletion"""
-        supa_executor.shutdown(wait=False)
+        self.supa_executor.shutdown(wait=False)
 
 
     def insert_new_chat(self, user_id: str, form_data: ChatForm, db_session=None) -> Optional[ChatModel]:

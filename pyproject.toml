@@ -17,7 +17,7 @@ dependencies = [
     "cryptography",
 
     "requests==2.32.4",
-    "aiohttp==3.11.11",
+    "aiohttp==3.12.14",
     "async-timeout",
     "aiocache",
     "aiofiles",

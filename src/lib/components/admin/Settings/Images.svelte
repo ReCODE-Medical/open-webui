@@ -13,9 +13,11 @@
 		updateConfig,
 		verifyConfigUrl
 	} from '$lib/apis/images';
+	import Spinner from '$lib/components/common/Spinner.svelte';
 	import SensitiveInput from '$lib/components/common/SensitiveInput.svelte';
 	import Switch from '$lib/components/common/Switch.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
+	import Textarea from '$lib/components/common/Textarea.svelte';
 	const dispatch = createEventDispatcher();
 
 	const i18n = getContext('i18n');
@@ -99,16 +101,21 @@
 
 	const getModels = async () => {
 		models = await getImageGenerationModels(localStorage.token).catch((error) => {
-			toast.error(error);
+			toast.error(`${error}`);
 			return null;
 		});
 	};
 
 	const updateConfigHandler = async () => {
-		const res = await updateConfig(localStorage.token, config).catch((error) => {
-			toast.error(error);
-			return null;
-		});
+		const res = await updateConfig(localStorage.token, config)
+			.catch((error) => {
+				toast.error(`${error}`);
+				return null;
+			})
+			.catch((error) => {
+				toast.error(`${error}`);
+				return null;
+			});
 
 		if (res) {
 			config = res;
@@ -154,13 +161,13 @@
 		}
 
 		await updateConfig(localStorage.token, config).catch((error) => {
-			toast.error(error);
+			toast.error(`${error}`);
 			loading = false;
 			return null;
 		});
 
 		await updateImageGenerationConfig(localStorage.token, imageGenerationConfig).catch((error) => {
-			toast.error(error);
+			toast.error(`${error}`);
 			loading = false;
 			return null;
 		});
@@ -171,9 +178,9 @@
 	};
 
 	onMount(async () => {
-		if ($user.role === 'admin') {
+		if ($user?.role === 'admin') {
 			const res = await getConfig(localStorage.token).catch((error) => {
-				toast.error(error);
+				toast.error(`${error}`);
 				return null;
 			});
 
@@ -186,17 +193,21 @@
 			}
 
 			if (config.comfyui.COMFYUI_WORKFLOW) {
-				config.comfyui.COMFYUI_WORKFLOW = JSON.stringify(
-					JSON.parse(config.comfyui.COMFYUI_WORKFLOW),
-					null,
-					2
-				);
+				try {
+					config.comfyui.COMFYUI_WORKFLOW = JSON.stringify(
+						JSON.parse(config.comfyui.COMFYUI_WORKFLOW),
+						null,
+						2
+					);
+				} catch (e) {
+					console.error(e);
+				}
 			}
 
 			requiredWorkflowNodes = requiredWorkflowNodes.map((node) => {
 				const n = config.comfyui.COMFYUI_WORKFLOW_NODES.find((n) => n.type === node.type) ?? node;
 
-				console.log(n);
+				console.debug(n);
 
 				return {
 					type: n.type,
@@ -206,7 +217,7 @@
 			});
 
 			const imageConfigRes = await getImageGenerationConfig(localStorage.token).catch((error) => {
-				toast.error(error);
+				toast.error(`${error}`);
 				return null;
 			});
 
@@ -229,7 +240,7 @@
 				<div class=" mb-1 text-sm font-medium">{$i18n.t('Image Settings')}</div>
 
 				<div>
-					<div class=" py-0.5 flex w-full justify-between">
+					<div class=" py-1 flex w-full justify-between">
 						<div class=" self-center text-xs font-medium">
 							{$i18n.t('Image Generation (Experimental)')}
 						</div>
@@ -256,6 +267,9 @@
 										} else if (config.engine === 'openai' && config.openai.OPENAI_API_KEY === '') {
 											toast.error($i18n.t('OpenAI API Key is required.'));
 											config.enabled = false;
+										} else if (config.engine === 'gemini' && config.gemini.GEMINI_API_KEY === '') {
+											toast.error($i18n.t('Gemini API Key is required.'));
+											config.enabled = false;
 										}
 									}
 
@@ -266,11 +280,20 @@
 					</div>
 				</div>
 
-				<div class=" py-0.5 flex w-full justify-between">
+				{#if config.enabled}
+					<div class=" py-1 flex w-full justify-between">
+						<div class=" self-center text-xs font-medium">{$i18n.t('Image Prompt Generation')}</div>
+						<div class="px-1">
+							<Switch bind:state={config.prompt_generation} />
+						</div>
+					</div>
+				{/if}
+
+				<div class=" py-1 flex w-full justify-between">
 					<div class=" self-center text-xs font-medium">{$i18n.t('Image Generation Engine')}</div>
 					<div class="flex items-center relative">
 						<select
-							class="w-fit pr-8 rounded px-2 p-1 text-xs bg-transparent outline-none text-right"
+							class=" dark:bg-gray-900 w-fit pr-8 cursor-pointer rounded-sm px-2 p-1 text-xs bg-transparent outline-hidden text-right"
 							bind:value={config.engine}
 							placeholder={$i18n.t('Select Engine')}
 							on:change={async () => {
@@ -280,11 +303,12 @@
 							<option value="openai">{$i18n.t('Default (Open AI)')}</option>
 							<option value="comfyui">{$i18n.t('ComfyUI')}</option>
 							<option value="automatic1111">{$i18n.t('Automatic1111')}</option>
+							<option value="gemini">{$i18n.t('Gemini')}</option>
 						</select>
 					</div>
 				</div>
 			</div>
-			<hr class=" dark:border-gray-850" />
+			<hr class=" border-gray-100 dark:border-gray-850" />
 
 			<div class="flex flex-col gap-2">
 				{#if (config?.engine ?? 'automatic1111') === 'automatic1111'}
@@ -293,7 +317,7 @@
 						<div class="flex w-full">
 							<div class="flex-1 mr-2">
 								<input
-									class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
+									class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-hidden"
 									placeholder={$i18n.t('Enter URL (e.g. http://127.0.0.1:7860/)')}
 									bind:value={config.automatic1111.AUTOMATIC1111_BASE_URL}
 								/>
@@ -304,7 +328,7 @@
 								on:click={async () => {
 									await updateConfigHandler();
 									const res = await verifyConfigUrl(localStorage.token).catch((error) => {
-										toast.error(error);
+										toast.error(`${error}`);
 										return null;
 									});
 
@@ -372,7 +396,7 @@
 								<Tooltip content={$i18n.t('Enter Sampler (e.g. Euler a)')} placement="top-start">
 									<input
 										list="sampler-list"
-										class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
+										class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-hidden"
 										placeholder={$i18n.t('Enter Sampler (e.g. Euler a)')}
 										bind:value={config.automatic1111.AUTOMATIC1111_SAMPLER}
 									/>
@@ -394,7 +418,7 @@
 								<Tooltip content={$i18n.t('Enter Scheduler (e.g. Karras)')} placement="top-start">
 									<input
 										list="scheduler-list"
-										class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
+										class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-hidden"
 										placeholder={$i18n.t('Enter Scheduler (e.g. Karras)')}
 										bind:value={config.automatic1111.AUTOMATIC1111_SCHEDULER}
 									/>
@@ -415,7 +439,7 @@
 							<div class="flex-1 mr-2">
 								<Tooltip content={$i18n.t('Enter CFG Scale (e.g. 7.0)')} placement="top-start">
 									<input
-										class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
+										class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-hidden"
 										placeholder={$i18n.t('Enter CFG Scale (e.g. 7.0)')}
 										bind:value={config.automatic1111.AUTOMATIC1111_CFG_SCALE}
 									/>
@@ -429,7 +453,7 @@
 						<div class="flex w-full">
 							<div class="flex-1 mr-2">
 								<input
-									class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
+									class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-hidden"
 									placeholder={$i18n.t('Enter URL (e.g. http://127.0.0.1:7860/)')}
 									bind:value={config.comfyui.COMFYUI_BASE_URL}
 								/>
@@ -440,7 +464,7 @@
 								on:click={async () => {
 									await updateConfigHandler();
 									const res = await verifyConfigUrl(localStorage.token).catch((error) => {
-										toast.error(error);
+										toast.error(`${error}`);
 										return null;
 									});
 
@@ -466,11 +490,24 @@
 					</div>
 
 					<div class="">
+						<div class=" mb-2 text-sm font-medium">{$i18n.t('ComfyUI API Key')}</div>
+						<div class="flex w-full">
+							<div class="flex-1 mr-2">
+								<SensitiveInput
+									placeholder={$i18n.t('sk-1234')}
+									bind:value={config.comfyui.COMFYUI_API_KEY}
+									required={false}
+								/>
+							</div>
+						</div>
+					</div>
+
+					<div class="">
 						<div class=" mb-2 text-sm font-medium">{$i18n.t('ComfyUI Workflow')}</div>
 
 						{#if config.comfyui.COMFYUI_WORKFLOW}
-							<textarea
-								class="w-full rounded-lg mb-1 py-2 px-4 text-xs bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none disabled:text-gray-600 resize-none"
+							<Textarea
+								class="w-full rounded-lg mb-1 py-2 px-4 text-xs bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-hidden disabled:text-gray-600 resize-none"
 								rows="10"
 								bind:value={config.comfyui.COMFYUI_WORKFLOW}
 								required
@@ -498,7 +535,7 @@
 								/>
 
 								<button
-									class="w-full text-sm font-medium py-2 bg-transparent hover:bg-gray-100 border border-dashed dark:border-gray-800 dark:hover:bg-gray-850 text-center rounded-xl"
+									class="w-full text-sm font-medium py-2 bg-transparent hover:bg-gray-50 border border-dashed border-gray-50 dark:border-gray-850 dark:hover:bg-gray-850 text-center rounded-xl"
 									type="button"
 									on:click={() => {
 										document.getElementById('upload-comfyui-workflow-input')?.click();
@@ -520,10 +557,10 @@
 
 							<div class="text-xs flex flex-col gap-1.5">
 								{#each requiredWorkflowNodes as node}
-									<div class="flex w-full items-center border dark:border-gray-850 rounded-lg">
-										<div class="flex-shrink-0">
+									<div class="flex w-full items-center">
+										<div class="shrink-0">
 											<div
-												class=" capitalize line-clamp-1 font-medium px-3 py-1 w-20 text-center rounded-l-lg bg-green-500/10 text-green-700 dark:text-green-200"
+												class=" capitalize line-clamp-1 font-medium px-3 py-1 w-20 text-center bg-green-500/10 text-green-700 dark:text-green-200"
 											>
 												{node.type}{node.type === 'prompt' ? '*' : ''}
 											</div>
@@ -531,7 +568,7 @@
 										<div class="">
 											<Tooltip content="Input Key (e.g. text, unet_name, steps)">
 												<input
-													class="py-1 px-3 w-24 text-xs text-center bg-transparent outline-none border-r dark:border-gray-850"
+													class="py-1 px-3 w-24 text-xs text-center bg-transparent outline-hidden border-r border-gray-50 dark:border-gray-850"
 													placeholder="Key"
 													bind:value={node.key}
 													required
@@ -545,7 +582,7 @@
 												placement="top-start"
 											>
 												<input
-													class="w-full py-1 px-4 rounded-r-lg text-xs bg-transparent outline-none"
+													class="w-full py-1 px-4 text-xs bg-transparent outline-hidden"
 													placeholder="Node Ids"
 													bind:value={node.node_ids}
 												/>
@@ -566,7 +603,7 @@
 
 						<div class="flex gap-2 mb-1">
 							<input
-								class="flex-1 w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
+								class="flex-1 w-full text-sm bg-transparent outline-hidden"
 								placeholder={$i18n.t('API Base URL')}
 								bind:value={config.openai.OPENAI_API_BASE_URL}
 								required
@@ -578,11 +615,29 @@
 							/>
 						</div>
 					</div>
+				{:else if config?.engine === 'gemini'}
+					<div>
+						<div class=" mb-1.5 text-sm font-medium">{$i18n.t('Gemini API Config')}</div>
+
+						<div class="flex gap-2 mb-1">
+							<input
+								class="flex-1 w-full text-sm bg-transparent outline-none"
+								placeholder={$i18n.t('API Base URL')}
+								bind:value={config.gemini.GEMINI_API_BASE_URL}
+								required
+							/>
+
+							<SensitiveInput
+								placeholder={$i18n.t('API Key')}
+								bind:value={config.gemini.GEMINI_API_KEY}
+							/>
+						</div>
+					</div>
 				{/if}
 			</div>
 
 			{#if config?.enabled}
-				<hr class=" dark:border-gray-850" />
+				<hr class=" border-gray-100 dark:border-gray-850" />
 
 				<div>
 					<div class=" mb-2.5 text-sm font-medium">{$i18n.t('Set Default Model')}</div>
@@ -593,7 +648,7 @@
 									<Tooltip content={$i18n.t('Enter Model ID')} placement="top-start">
 										<input
 											list="model-list"
-											class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
+											class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-hidden"
 											bind:value={imageGenerationConfig.MODEL}
 											placeholder="Select a model"
 											required
@@ -617,7 +672,7 @@
 						<div class="flex-1 mr-2">
 							<Tooltip content={$i18n.t('Enter Image Size (e.g. 512x512)')} placement="top-start">
 								<input
-									class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
+									class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-hidden"
 									placeholder={$i18n.t('Enter Image Size (e.g. 512x512)')}
 									bind:value={imageGenerationConfig.IMAGE_SIZE}
 									required
@@ -633,7 +688,7 @@
 						<div class="flex-1 mr-2">
 							<Tooltip content={$i18n.t('Enter Number of Steps (e.g. 50)')} placement="top-start">
 								<input
-									class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-none"
+									class="w-full rounded-lg py-2 px-4 text-sm bg-gray-50 dark:text-gray-300 dark:bg-gray-850 outline-hidden"
 									placeholder={$i18n.t('Enter Number of Steps (e.g. 50)')}
 									bind:value={imageGenerationConfig.IMAGE_STEPS}
 									required
@@ -648,7 +703,7 @@
 
 	<div class="flex justify-end pt-3 text-sm font-medium">
 		<button
-			class=" px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-gray-100 transition rounded-lg flex flex-row space-x-1 items-center {loading
+			class="px-3.5 py-1.5 text-sm font-medium bg-black hover:bg-gray-900 text-white dark:bg-white dark:text-black dark:hover:bg-gray-100 transition rounded-full flex flex-row space-x-1 items-center {loading
 				? ' cursor-not-allowed'
 				: ''}"
 			type="submit"
@@ -658,29 +713,7 @@
 
 			{#if loading}
 				<div class="ml-2 self-center">
-					<svg
-						class=" w-4 h-4"
-						viewBox="0 0 24 24"
-						fill="currentColor"
-						xmlns="http://www.w3.org/2000/svg"
-						><style>
-							.spinner_ajPY {
-								transform-origin: center;
-								animation: spinner_AtaB 0.75s infinite linear;
-							}
-							@keyframes spinner_AtaB {
-								100% {
-									transform: rotate(360deg);
-								}
-							}
-						</style><path
-							d="M12,1A11,11,0,1,0,23,12,11,11,0,0,0,12,1Zm0,19a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z"
-							opacity=".25"
-						/><path
-							d="M10.14,1.16a11,11,0,0,0-9,8.92A1.59,1.59,0,0,0,2.46,12,1.52,1.52,0,0,0,4.11,10.7a8,8,0,0,1,6.66-6.61A1.42,1.42,0,0,0,12,2.69h0A1.57,1.57,0,0,0,10.14,1.16Z"
-							class="spinner_ajPY"
-						/></svg
-					>
+					<Spinner />
 				</div>
 			{/if}
 		</button>

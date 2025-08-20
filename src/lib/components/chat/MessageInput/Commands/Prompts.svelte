@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { prompts } from '$lib/stores';
+	import { prompts, settings, user } from '$lib/stores';
 	import {
-		findWordIndices,
+		extractCurlyBraceWords,
 		getUserPosition,
 		getFormattedDate,
 		getFormattedTime,
@@ -9,15 +9,13 @@
 		getUserTimezone,
 		getWeekday
 	} from '$lib/utils';
-	import { tick, getContext } from 'svelte';
+	import { tick, getContext, onMount, onDestroy } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
 	const i18n = getContext('i18n');
 
-	export let files;
-
-	export let prompt = '';
 	export let command = '';
+	export let onSelect = (e) => {};
 
 	let selectedPromptIdx = 0;
 	let filteredPrompts = [];
@@ -38,119 +36,59 @@
 		selectedPromptIdx = Math.min(selectedPromptIdx + 1, filteredPrompts.length - 1);
 	};
 
-	const confirmPrompt = async (command) => {
-		let text = command.content;
+	let container;
+	let adjustHeightDebounce;
 
-		if (command.content.includes('{{CLIPBOARD}}')) {
-			const clipboardText = await navigator.clipboard.readText().catch((err) => {
-				toast.error($i18n.t('Failed to read clipboard contents'));
-				return '{{CLIPBOARD}}';
-			});
-
-			const clipboardItems = await navigator.clipboard.read();
-
-			let imageUrl = null;
-			for (const item of clipboardItems) {
-				// Check for known image types
-				for (const type of item.types) {
-					if (type.startsWith('image/')) {
-						const blob = await item.getType(type);
-						imageUrl = URL.createObjectURL(blob);
-					}
-				}
+	const adjustHeight = () => {
+		if (container) {
+			if (adjustHeightDebounce) {
+				clearTimeout(adjustHeightDebounce);
 			}
 
-			if (imageUrl) {
-				files = [
-					...files,
-					{
-						type: 'image',
-						url: imageUrl
-					}
-				];
-			}
+			adjustHeightDebounce = setTimeout(() => {
+				if (!container) return;
 
-			text = text.replaceAll('{{CLIPBOARD}}', clipboardText);
-		}
-
-		if (command.content.includes('{{USER_LOCATION}}')) {
-			const location = await getUserPosition();
-			text = text.replaceAll('{{USER_LOCATION}}', String(location));
-		}
-
-		if (command.content.includes('{{USER_LANGUAGE}}')) {
-			const language = localStorage.getItem('locale') || 'en-US';
-			text = text.replaceAll('{{USER_LANGUAGE}}', language);
-		}
-
-		if (command.content.includes('{{CURRENT_DATE}}')) {
-			const date = getFormattedDate();
-			text = text.replaceAll('{{CURRENT_DATE}}', date);
-		}
-
-		if (command.content.includes('{{CURRENT_TIME}}')) {
-			const time = getFormattedTime();
-			text = text.replaceAll('{{CURRENT_TIME}}', time);
-		}
-
-		if (command.content.includes('{{CURRENT_DATETIME}}')) {
-			const dateTime = getCurrentDateTime();
-			text = text.replaceAll('{{CURRENT_DATETIME}}', dateTime);
-		}
-
-		if (command.content.includes('{{CURRENT_TIMEZONE}}')) {
-			const timezone = getUserTimezone();
-			text = text.replaceAll('{{CURRENT_TIMEZONE}}', timezone);
-		}
-
-		if (command.content.includes('{{CURRENT_WEEKDAY}}')) {
-			const weekday = getWeekday();
-			text = text.replaceAll('{{CURRENT_WEEKDAY}}', weekday);
-		}
-
-		prompt = text;
-
-		const chatInputElement = document.getElementById('chat-textarea');
-
-		await tick();
-
-		chatInputElement.style.height = '';
-		chatInputElement.style.height = Math.min(chatInputElement.scrollHeight, 200) + 'px';
-
-		chatInputElement?.focus();
-
-		await tick();
-
-		const words = findWordIndices(prompt);
-		if (words.length > 0) {
-			const word = words.at(0);
-			chatInputElement.setSelectionRange(word?.startIndex, word.endIndex + 1);
+				// Ensure the container is visible before adjusting height
+				const rect = container.getBoundingClientRect();
+				container.style.maxHeight = Math.max(Math.min(240, rect.bottom - 80), 100) + 'px';
+			}, 100);
 		}
 	};
+
+	const confirmPrompt = async (command) => {
+		onSelect({ type: 'prompt', data: command });
+	};
+
+	onMount(() => {
+		window.addEventListener('resize', adjustHeight);
+		adjustHeight();
+	});
+
+	onDestroy(() => {
+		window.removeEventListener('resize', adjustHeight);
+	});
 </script>
 
 {#if filteredPrompts.length > 0}
 	<div
 		id="commands-container"
-		class="pl-2 pr-14 mb-3 text-left w-full absolute bottom-0 left-0 right-0 z-10"
+		class="px-2 mb-2 text-left w-full absolute bottom-0 left-0 right-0 z-10"
 	>
-		<div class="flex w-full dark:border dark:border-gray-850 rounded-lg">
-			<div class="  bg-gray-50 dark:bg-gray-850 w-10 rounded-l-lg text-center">
-				<div class=" text-lg font-medium mt-2">/</div>
-			</div>
-
-			<div
-				class="max-h-60 flex flex-col w-full rounded-r-lg bg-white dark:bg-gray-900 dark:text-gray-100"
-			>
-				<div class="m-1 overflow-y-auto p-1 rounded-r-lg space-y-0.5 scrollbar-hidden">
-					{#each filteredPrompts as prompt, promptIdx}
+		<div class="flex w-full rounded-xl border border-gray-100 dark:border-gray-850">
+			<div class="flex flex-col w-full rounded-xl bg-white dark:bg-gray-900 dark:text-gray-100">
+				<div
+					class="m-1 overflow-y-auto p-1 space-y-0.5 scrollbar-hidden max-h-60"
+					id="command-options-container"
+					bind:this={container}
+				>
+					{#each filteredPrompts as promptItem, promptIdx}
 						<button
 							class=" px-3 py-1.5 rounded-xl w-full text-left {promptIdx === selectedPromptIdx
 								? '  bg-gray-50 dark:bg-gray-850 selected-command-option-button'
 								: ''}"
 							type="button"
 							on:click={() => {
-								confirmPrompt(prompt);
+								confirmPrompt(promptItem);
 							}}
 							on:mousemove={() => {
 								selectedPromptIdx = promptIdx;
@@ -158,18 +96,18 @@
 							on:focus={() => {}}
 						>
 							<div class=" font-medium text-black dark:text-gray-100">
-								{prompt.command}
+								{promptItem.command}
 							</div>
 
 							<div class=" text-xs text-gray-600 dark:text-gray-100">
-								{prompt.title}
+								{promptItem.title}
 							</div>
 						</button>
 					{/each}
 				</div>
 
 				<div
-					class=" px-2 pb-1 text-xs text-gray-600 dark:text-gray-100 bg-white dark:bg-gray-900 rounded-br-xl flex items-center space-x-1"
+					class=" px-2 pt-0.5 pb-1 text-xs text-gray-600 dark:text-gray-100 bg-white dark:bg-gray-900 rounded-b-xl flex items-center space-x-1"
 				>
 					<div>
 						<svg

@@ -1,6 +1,6 @@
 # Hosting UI and Models separately
 
-Sometimes, its beneficial to host Ollama, separate from the UI, but retain the RAG and RBAC support features shared across users:
+Sometimes, it's beneficial to host Ollama, separate from the UI, but retain the RAG and RBAC support features shared across users:
 
 # Open WebUI Configuration
 
@@ -16,6 +16,9 @@ For the UI configuration, you can set up the Apache VirtualHost as follows:
 
     ProxyPass / http://server.com:3000/ nocanon
     ProxyPassReverse / http://server.com:3000/
+    # Needed after 0.5
+    ProxyPass / ws://server.com:3000/ nocanon
+    ProxyPassReverse / ws://server.com:3000/
 
 </VirtualHost>
 ```
@@ -32,6 +35,9 @@ Enable the site first before you can request SSL:
 
     ProxyPass / http://server.com:3000/ nocanon
     ProxyPassReverse / http://server.com:3000/
+    # Needed after 0.5
+    ProxyPass / ws://server.com:3000/ nocanon
+    ProxyPassReverse / ws://server.com:3000/
 
     SSLEngine on
     SSLCertificateFile /etc/ssl/virtualmin/170514456861234/ssl.cert
@@ -118,7 +124,7 @@ Navigate to the apache sites-available directory:
 
 `nano models.server.city.conf` # match this with your ollama server domain
 
-Add the folloing virtualhost containing this example (modify as needed):
+Add the following virtualhost containing this example (modify as needed):
 
 ```
 

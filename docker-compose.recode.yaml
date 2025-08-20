@@ -35,14 +35,15 @@ services:
     environment:
       ENV: prod
       WEBUI_NAME: ReCODE Chat
+      WEBUI_FAVICON_URL: https://recodemedical.com/wp-content/uploads/2025/03/logo.svg
       WEBUI_SECRET_KEY: 
-      RECODE_DASHBOARD_API_KEY: ${RECODE_DASHBOARD_API_KEY}
       
       ENABLE_SIGNUP: "false"
       ENABLE_OAUTH_SIGNUP: true
       ENABLE_LOGIN_FORM: "false"
       
       ENABLE_USAGE_LIMITS: "false"
+      ENABLE_VERSION_UPDATE_CHECK: "false"
       OAUTH_CLIENT_ID: ${RECODE_OAUTH_CLIENT_ID}
       OAUTH_CLIENT_SECRET: ${RECODE_OAUTH_CLIENT_SECRET}
       OPENID_PROVIDER_URL: ${RECODE_OPENID_PROVIDER_URL}

@@ -8,6 +8,7 @@
 
 	import Modal from '../common/Modal.svelte';
 	import Link from '../icons/Link.svelte';
+	import XMark from '$lib/components/icons/XMark.svelte';
 
 	export let chatId;
 
@@ -30,7 +31,7 @@
 		const _chat = chat.chat;
 		console.log('share', _chat);
 
-		toast.success($i18n.t('Redirecting you to OpenWebUI Community'));
+		toast.success($i18n.t('Redirecting you to Open WebUI Community'));
 		const url = 'https://openwebui.com';
 		// const url = 'http://localhost:5173';
 
@@ -80,7 +81,7 @@
 	}
 </script>
 
-<Modal bind:show size="sm">
+<Modal bind:show size="md">
 	<div>
 		<div class=" flex justify-between dark:text-gray-300 px-5 pt-4 pb-0.5">
 			<div class=" text-lg font-medium self-center">{$i18n.t('Share Chat')}</div>
@@ -90,16 +91,7 @@
 					show = false;
 				}}
 			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					viewBox="0 0 20 20"
-					fill="currentColor"
-					class="w-5 h-5"
-				>
-					<path
-						d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"
-					/>
-				</svg>
+				<XMark className={'size-5'} />
 			</button>
 		</div>
 
@@ -132,23 +124,23 @@
 				</div>
 
 				<div class="flex justify-end">
-					<div class="flex flex-col items-end space-x-1 mt-1.5">
+					<div class="flex flex-col items-end space-x-1 mt-3">
 						<div class="flex gap-1">
 							{#if $config?.features.enable_community_sharing}
 								<button
-									class=" self-center px-3.5 py-2 rounded-xl text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-gray-850 dark:hover:bg-gray-800 dark:text-white"
+									class="self-center flex items-center gap-1 px-3.5 py-2 text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-gray-850 dark:text-white dark:hover:bg-gray-800 transition rounded-full"
 									type="button"
 									on:click={() => {
 										shareChat();
 										show = false;
 									}}
 								>
-									{$i18n.t('Share to OpenWebUI Community')}
+									{$i18n.t('Share to Open WebUI Community')}
 								</button>
 							{/if}
 
 							<button
-								class=" self-center flex items-center gap-1 px-3.5 py-2 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white"
+								class="self-center flex items-center gap-1 px-3.5 py-2 text-sm font-medium bg-black hover:bg-gray-900 text-white dark:bg-white dark:text-black dark:hover:bg-gray-100 transition rounded-full"
 								type="button"
 								id="copy-and-share-chat-button"
 								on:click={async () => {

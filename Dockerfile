@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
 # Initialize device type args
-# use build args in the docker build commmand with --build-arg="BUILDARG=true"
+# use build args in the docker build command with --build-arg="BUILDARG=true"
 ARG USE_CUDA=false
 ARG USE_OLLAMA=false
 # Tested with cu117 for CUDA 11 and cu121 for CUDA 12 (default)
-ARG USE_CUDA_VER=cu121
+ARG USE_CUDA_VER=cu128
 # any sentence transformer model; models to use can be found at https://huggingface.co/models?library=sentence-transformers
 # Leaderboard: https://huggingface.co/spaces/mteb/leaderboard 
 # for better performance and multilangauge support use "intfloat/multilingual-e5-large" (~2.5GB) or "intfloat/multilingual-e5-base" (~1.5GB)
@@ -12,6 +12,10 @@ ARG USE_CUDA_VER=cu121
 # ARG USE_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
 ARG USE_EMBEDDING_MODEL=""
 ARG USE_RERANKING_MODEL=""
+
+# Tiktoken encoding name; models to use can be found at https://huggingface.co/models?library=tiktoken
+ARG USE_TIKTOKEN_ENCODING_NAME="cl100k_base"
+
 ARG BUILD_HASH=dev-build
 # Override at your own risk - non-root configurations are untested
 ARG UID=0
@@ -24,8 +28,11 @@ ARG BUILD_HASH
 
 WORKDIR /app
 
+# to store git revision in build
+RUN apk add --no-cache git
+
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --force
 
 COPY . .
 ENV APP_BUILD_HASH=${BUILD_HASH}
@@ -74,6 +81,10 @@ ENV WHISPER_MODEL="base" \
 ENV RAG_EMBEDDING_MODEL="$USE_EMBEDDING_MODEL_DOCKER" \
     RAG_RERANKING_MODEL="$USE_RERANKING_MODEL_DOCKER" \
     SENTENCE_TRANSFORMERS_HOME="/app/backend/data/cache/embedding/models"
+
+## Tiktoken model settings ##
+ENV TIKTOKEN_ENCODING_NAME="cl100k_base" \
+    TIKTOKEN_CACHE_DIR="/app/backend/data/cache/tiktoken"
 
 ## Hugging Face download cache ##
 ENV HF_HOME="/app/backend/data/cache/embedding/models"
@@ -127,16 +138,22 @@ RUN if [ "$USE_OLLAMA" = "true" ]; then \
 # install python dependencies
 COPY --chown=$UID:$GID ./backend/requirements.txt ./requirements.txt
 
-RUN pip3 install uv && \
-    if [ "$USE_CUDA" = "true" ]; then \
-    # If you use CUDA the whisper and embedding model will be downloaded on first use
-    pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/$USE_CUDA_DOCKER_VER --no-cache-dir && \
-    uv pip install --system -r requirements.txt --no-cache-dir && \
-    python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ['RAG_EMBEDDING_MODEL'], device='cpu')" && \
-    python -c "import os; from faster_whisper import WhisperModel; WhisperModel(os.environ['WHISPER_MODEL'], device='cpu', compute_type='int8', download_root=os.environ['WHISPER_MODEL_DIR'])"; \
-    else \
-    uv pip install --system -r requirements.txt --no-cache-dir; \
-    fi;
+RUN pip3 install --no-cache-dir uv && uv pip install --system -r requirements.txt --no-cache-dir
+    # if [ "$USE_CUDA" = "true" ]; then \
+    # # If you use CUDA the whisper and embedding model will be downloaded on first use
+    # pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/$USE_CUDA_DOCKER_VER --no-cache-dir && \
+    # uv pip install --system -r requirements.txt --no-cache-dir && \
+    # python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ['RAG_EMBEDDING_MODEL'], device='cpu')" && \
+    # python -c "import os; from faster_whisper import WhisperModel; WhisperModel(os.environ['WHISPER_MODEL'], device='cpu', compute_type='int8', download_root=os.environ['WHISPER_MODEL_DIR'])"; \
+    # python -c "import os; import tiktoken; tiktoken.get_encoding(os.environ['TIKTOKEN_ENCODING_NAME'])"; \
+    # else \
+    # pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu --no-cache-dir && \
+    # uv pip install --system -r requirements.txt --no-cache-dir && \
+    # python -c "import os; from sentence_transformers import SentenceTransformer; SentenceTransformer(os.environ['RAG_EMBEDDING_MODEL'], device='cpu')" && \
+    # python -c "import os; from faster_whisper import WhisperModel; WhisperModel(os.environ['WHISPER_MODEL'], device='cpu', compute_type='int8', download_root=os.environ['WHISPER_MODEL_DIR'])"; \
+    # python -c "import os; import tiktoken; tiktoken.get_encoding(os.environ['TIKTOKEN_ENCODING_NAME'])"; \
+    # fi; \
+    # chown -R $UID:$GID /app/backend/data/
 
 
 
@@ -152,6 +169,8 @@ COPY --chown=$UID:$GID --from=build /app/package.json /app/package.json
 # copy backend files
 COPY --chown=$UID:$GID ./backend .
 
+########################################################
+# TODO: You can likely clean this up in the new release. 
 # ReCODE copies...
 # Current version of Coolify is terrible at handing file mounts. So we place them directly in the image.
 # Directories are still mounted in the compose file.
@@ -167,7 +186,8 @@ COPY --chown=$UID:$GID ./recode_functions /app/backend/functions
 # The config file below cannot be copied here, as the compose volume /data mount will overwrite it...
 # Instead, the solution is to copy this file to /backend and copy it to the data folder in the custom_start.sh script
 # COPY --chown=$UID:$GID ./recode_config.json /app/backend/data/config.json
-COPY --chown=user:group ./recode_config.json /app/backend/config.json
+COPY --chown=$UID:$GID ./recode_config.json /app/backend/config.json
+########################################################
 
 EXPOSE 8080
 

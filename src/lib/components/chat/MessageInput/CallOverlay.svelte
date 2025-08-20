@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { config, models, settings, showCallOverlay } from '$lib/stores';
+	import { config, models, settings, showCallOverlay, TTSWorker } from '$lib/stores';
 	import { onMount, tick, getContext, onDestroy, createEventDispatcher } from 'svelte';
 
 	const dispatch = createEventDispatcher();
@@ -12,6 +12,7 @@
 
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import VideoInputMenu from './CallOverlay/VideoInputMenu.svelte';
+	import { KokoroWorker } from '$lib/workers/KokoroWorker';
 
 	const i18n = getContext('i18n');
 
@@ -152,8 +153,12 @@
 		await tick();
 		const file = blobToFile(audioBlob, 'recording.wav');
 
-		const res = await transcribeAudio(localStorage.token, file).catch((error) => {
-			toast.error(error);
+		const res = await transcribeAudio(
+			localStorage.token,
+			file,
+			$settings?.audio?.stt?.language
+		).catch((error) => {
+			toast.error(`${error}`);
 			return null;
 		});
 
@@ -217,14 +222,19 @@
 	const startRecording = async () => {
 		if ($showCallOverlay) {
 			if (!audioStream) {
-				audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+				audioStream = await navigator.mediaDevices.getUserMedia({
+					audio: {
+						echoCancellation: true,
+						noiseSuppression: true,
+						autoGainControl: true
+					}
+				});
 			}
 			mediaRecorder = new MediaRecorder(audioStream);
 
 			mediaRecorder.onstart = () => {
 				console.log('Recording started');
 				audioChunks = [];
-				analyseAudio(audioStream);
 			};
 
 			mediaRecorder.ondataavailable = (event) => {
@@ -238,7 +248,7 @@
 				stopRecordingCallback();
 			};
 
-			mediaRecorder.start();
+			analyseAudio(audioStream);
 		}
 	};
 
@@ -314,6 +324,9 @@
 				if (hasSound) {
 					// BIG RED TEXT
 					console.log('%c%s', 'color: red; font-size: 20px;', '🔊 Sound detected');
+					if (mediaRecorder && mediaRecorder.state !== 'recording') {
+						mediaRecorder.start();
+					}
 
 					if (!hasStartedSpeaking) {
 						hasStartedSpeaking = true;
@@ -453,7 +466,21 @@
 					}
 				}
 
-				if ($config.audio.tts.engine !== '') {
+				if ($settings.audio?.tts?.engine === 'browser-kokoro') {
+					const blob = await $TTSWorker
+						.generate({
+							text: content,
+							voice: $settings?.audio?.tts?.voice ?? $config?.audio?.tts?.voice
+						})
+						.catch((error) => {
+							console.error(error);
+							toast.error(`${error}`);
+						});
+
+					if (blob) {
+						audioCache.set(content, new Audio(blob));
+					}
+				} else if ($config.audio.tts.engine !== '') {
 					const res = await synthesizeOpenAISpeech(
 						localStorage.token,
 						$settings?.audio?.tts?.defaultVoice === $config.audio.tts.voice
@@ -827,6 +854,7 @@
 				</button>
 			{:else}
 				<div class="relative flex video-container w-full max-h-full pt-2 pb-4 md:py-6 px-2 h-full">
+					<!-- svelte-ignore a11y-media-has-caption -->
 					<video
 						id="camera-feed"
 						autoplay

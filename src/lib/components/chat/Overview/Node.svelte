@@ -2,7 +2,7 @@
 	import { WEBUI_BASE_URL } from '$lib/constants';
 	import { Handle, Position, type NodeProps } from '@xyflow/svelte';
 
-	import ProfileImageBase from '../Messages/ProfileImageBase.svelte';
+	import ProfileImage from '../Messages/ProfileImage.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import Heart from '$lib/components/icons/Heart.svelte';
 
@@ -20,8 +20,8 @@
 	>
 		{#if data.message.role === 'user'}
 			<div class="flex w-full">
-				<ProfileImageBase
-					src={data.user?.profile_image_url ?? '/user.png'}
+				<ProfileImage
+					src={data.user?.profile_image_url ?? `${WEBUI_BASE_URL}/user.png`}
 					className={'size-5 -translate-y-[1px]'}
 				/>
 				<div class="ml-2">
@@ -40,7 +40,7 @@
 			</div>
 		{:else}
 			<div class="flex w-full">
-				<ProfileImageBase
+				<ProfileImage
 					src={data?.model?.info?.meta?.profile_image_url ?? ''}
 					className={'size-5 -translate-y-[1px]'}
 				/>

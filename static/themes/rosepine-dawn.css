@@ -23,7 +23,7 @@
 	fill: #ebbcba;
 }
 
-.rose-pine-dawn #chat-textarea {
+.rose-pine-dawn #chat-input {
 	background: #cecacd;
 	margin: 0.3rem;
 	padding: 0.5rem;
@@ -78,14 +78,6 @@
 
 .rose-pine-dawn .message.svelte-1nauejd {
 	color: #e0def4 !important;
-}
-
-.rose-pine-dawn #dropdownDots {
-	background-color: #dfdad9;
-}
-
-.rose-pine-dawn .flex.py-2\.5.px-3\.5.w-full.hover\:bg-gray-800.transition:hover {
-	background: #cecacd;
 }
 
 .rose-pine-dawn #dropdownDots {

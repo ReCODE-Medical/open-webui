@@ -132,12 +132,12 @@ def handle_peewee_migration(DATABASE_URL):
 handle_peewee_migration(DATABASE_URL)
 
 # Create engines for both databases
-main_engine = create_db_engine(DATABASE_URL, is_sqlite="sqlite" in DATABASE_URL)
+engine = create_db_engine(DATABASE_URL, is_sqlite="sqlite" in DATABASE_URL)
 supa_engine = create_db_engine(SUPABASE_DATABASE_URL)
 
 # Create session factories for both databases
 MainSessionLocal = sessionmaker(
-    autocommit=False, autoflush=False, bind=main_engine, expire_on_commit=False
+    autocommit=False, autoflush=False, bind=engine, expire_on_commit=False
 )
 SupaSessionLocal = sessionmaker(
     autocommit=False, autoflush=False, bind=supa_engine, expire_on_commit=False

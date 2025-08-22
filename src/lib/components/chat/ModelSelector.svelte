@@ -68,7 +68,6 @@
 				</div>
 			</div>
 
-<!-- 
 			{#if $user?.role === 'admin' || ($user?.permissions?.chat?.multiple_models ?? true)}
 				{#if selectedModelIdx === 0}
 					<div
@@ -124,7 +123,6 @@
 					</div>
 				{/if}
 			{/if}
--->
 		</div>
 	{/each}
 </div>

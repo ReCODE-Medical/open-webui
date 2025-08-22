@@ -1,6 +1,6 @@
 {
-  "name": "Open WebUI",
-  "short_name": "WebUI",
+  "name": "ReCODE Chat",
+  "short_name": "ReCODE",
   "icons": [
     {
       "src": "/static/web-app-manifest-192x192.png",

@@ -6,21 +6,8 @@ services:
     container_name: open-webui
     volumes:  # Config mount reference: https://github.com/rndmcnlly/brace/blob/main/compose.yaml 
       - open-webui:/app/backend/data
-      #############################################################################################
-      # Current version of Coolify is terrible at mounting files. These are now directly in the Dockerfile.
-      #############################################################################################
-      # - ./recode_functions:/functions:ro
-      # - ./custom_start.sh:/app/backend/custom_start.sh:ro
-      # - ./custom_start.py:/app/backend/custom_start.py:ro
-      # - ./recode_knowledge/recode_chat_knowledge/cardio_procedures_final_by_similarity.json:/app/backend/recode_knowledge/cardio_procedures_final_by_similarity.json:ro
-      # - ./recode_system_prompts/recode_cardio_system_prompt.md:/app/backend/recode_cardio_system_prompt.md
-      # - ./recode_tri_logo.jpg:/app/backend/recode_tri_logo.jpg:ro
-      # - ./recode_models.json:/app/backend/recode_models.json:ro
-      # - ./recode_prompts.json:/app/backend/recode_prompts.json:ro
-      # - ./recode_functions.json:/app/backend/recode_functions.json:ro
-      # - ./recode_config.json:/app/backend/data/config.json
 
-    entrypoint: ["bash", "/app/backend/custom_start.sh"]
+    entrypoint: ["bash", "/app/backend/start.sh"]
     depends_on:
       redis:
         condition: service_healthy
@@ -79,16 +66,26 @@ services:
 
       CONTENT_EXTRACTION_ENGINE: tika
       
+      # VECTOR_DB: qdrant
+      # QDRANT_HOST: qdrant
+      # QDRANT_PORT: 6333
+
       VECTOR_DB: qdrant
-      QDRANT_HOST: qdrant
-      QDRANT_PORT: 6333
+      QDRANT_URI: http://qdrant:6333  # This replaces QDRANT_HOST/QDRANT_PORT
+      QDRANT_API_KEY: ""  # Leave empty if no auth needed, or set if you configure auth
+      QDRANT_COLLECTION_PREFIX: "recode"  # Optional prefix for your collections
+      QDRANT_ON_DISK: "true"  # Store vectors on disk for persistence
+      QDRANT_PREFER_GRPC: "false"  # Use HTTP instead of gRPC for simplicity
+      QDRANT_GRPC_PORT: 6334  # Only needed if PREFER_GRPC is true
+      QDRANT_TIMEOUT: 30  # Timeout in seconds
+      QDRANT_HNSW_M: 16  # HNSW algorithm parameter for performance tuning
+      ENABLE_QDRANT_MULTITENANCY_MODE: "true"
+
       RAG_EMBEDDING_ENGINE: openai
       RAG_EMBEDDING_MODEL: text-embedding-3-large
       RAG_EMBEDDING_OPENAI_BATCH_SIZE: 2048
       
       ENABLE_MODEL_FILTER: true
-      MODEL_FILTER_LIST: "recode-cardio-openai;recode-vascular-surgery-openai;recode-ortho-openai"
-      DEFAULT_MODELS: "recode-cardio-openai"
       RESET_CONFIG_ON_START: "false"
       
       WEBSOCKET_MANAGER: redis

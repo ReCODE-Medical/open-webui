@@ -169,26 +169,6 @@ COPY --chown=$UID:$GID --from=build /app/package.json /app/package.json
 # copy backend files
 COPY --chown=$UID:$GID ./backend .
 
-########################################################
-# TODO: You can likely clean this up in the new release. 
-# ReCODE copies...
-# Current version of Coolify is terrible at handing file mounts. So we place them directly in the image.
-# Directories are still mounted in the compose file.
-COPY --chown=$UID:$GID ./custom_start.sh /app/backend/custom_start.sh
-COPY --chown=$UID:$GID ./custom_start.py /app/backend/custom_start.py
-COPY --chown=$UID:$GID ./recode_knowledge/recode_chat_knowledge/cardio_procedures_final_by_similarity.json /app/backend/recode_knowledge/cardio_procedures_final_by_similarity.json
-COPY --chown=$UID:$GID ./recode_system_prompts/recode_cardio_system_prompt.md /app/backend/recode_cardio_system_prompt.md
-COPY --chown=$UID:$GID ./recode_tri_logo.jpg /app/backend/recode_tri_logo.jpg
-COPY --chown=$UID:$GID ./recode_models.json /app/backend/recode_models.json
-COPY --chown=$UID:$GID ./recode_prompts.json /app/backend/recode_prompts.json
-COPY --chown=$UID:$GID ./recode_functions.json /app/backend/recode_functions.json
-COPY --chown=$UID:$GID ./recode_functions /app/backend/functions
-# The config file below cannot be copied here, as the compose volume /data mount will overwrite it...
-# Instead, the solution is to copy this file to /backend and copy it to the data folder in the custom_start.sh script
-# COPY --chown=$UID:$GID ./recode_config.json /app/backend/data/config.json
-COPY --chown=$UID:$GID ./recode_config.json /app/backend/config.json
-########################################################
-
 EXPOSE 8080
 
 HEALTHCHECK CMD curl --silent --fail http://localhost:${PORT:-8080}/health | jq -ne 'input.status == true' || exit 1

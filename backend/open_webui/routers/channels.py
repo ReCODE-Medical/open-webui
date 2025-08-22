@@ -305,6 +305,22 @@ async def post_new_message(
 
             active_user_ids = get_user_ids_from_room(f"channel:{channel.id}")
 
+            # Send webhook notification like signup webhook - always send regardless of activity
+            if request.app.state.config.WEBHOOK_URL:
+                post_webhook(
+                    request.app.state.WEBUI_NAME,
+                    request.app.state.config.WEBHOOK_URL,
+                    f"{user.name} posted a new message in #{channel.name}\n{message.content}",
+                    {
+                        "action": "channel",
+                        "message": message.content,
+                        "title": channel.name,
+                        "url": f"{request.app.state.config.WEBUI_URL}/channels/{channel.id}",
+                        "channel_id": channel.id,
+                        "sender": user.name,
+                    },
+                )
+
             background_tasks.add_task(
                 send_notification,
                 request.app.state.WEBUI_NAME,

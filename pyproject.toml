@@ -55,7 +55,7 @@ dependencies = [
     "tiktoken",
 
     "langchain==0.3.26",
-    "langchain-community==0.3.26",
+    "langchain-community==0.3.27",
 
     "fake-useragent==2.2.0",
     "chromadb==0.6.3",

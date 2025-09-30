@@ -102,6 +102,7 @@ from open_webui.models.models import Models
 from open_webui.models.users import UserModel, Users
 from open_webui.models.chats import Chats
 from open_webui.models.billing import SupabaseMessageUsage
+from open_webui.models.zhealth import ZhealthLogs
 
 from open_webui.config import (
     # Ollama
@@ -1510,6 +1511,338 @@ async def chat_completion(
 # Alias for chat_completion (Legacy)
 generate_chat_completions = chat_completion
 generate_chat_completion = chat_completion
+
+
+@app.post("/api/chat/zhealth/completions")
+async def zhealth_chat_completion(
+    request: Request,
+    form_data: dict,
+    user=Depends(get_verified_user),
+):
+    """
+    Zhealth-specific chat completion endpoint that logs all requests, responses,
+    citations, and middleware events to Supabase.
+    """
+    import uuid as uuid_lib
+    from datetime import datetime
+    
+    # Generate a unique log ID for this request
+    log_id = uuid_lib.uuid4()
+    
+    # Initialize variables to track the complete interaction
+    collected_events = []
+    collected_citations = []
+    collected_sources = []
+    response_content = ""
+    response_tokens = None
+    error_message = None
+    
+    try:
+        if not request.app.state.MODELS:
+            await get_all_models(request, user=user)
+
+        model_id = form_data.get("model", None)
+        model_item = form_data.pop("model_item", {})
+        tasks = form_data.pop("background_tasks", None)
+
+        metadata = {}
+        
+        # Create initial log entry
+        try:
+            log_entry = ZhealthLogs.create_log(
+                user_id=user.id,
+                user_email=user.email,
+                model_id=model_id,
+                request_messages=form_data.get("messages", []),
+                request_params={
+                    "model": model_id,
+                    "stream": form_data.get("stream", False),
+                    "temperature": form_data.get("temperature"),
+                    "max_tokens": form_data.get("max_tokens"),
+                    "top_p": form_data.get("top_p"),
+                    "frequency_penalty": form_data.get("frequency_penalty"),
+                    "presence_penalty": form_data.get("presence_penalty"),
+                },
+                metadata={"log_id": str(log_id)}
+            )
+            log.info(f"Created zhealth log entry: {log_id}")
+        except Exception as e:
+            log.error(f"Failed to create initial zhealth log: {e}")
+            # Continue processing even if logging fails
+        
+        try:
+            if not model_item.get("direct", False):
+                if model_id not in request.app.state.MODELS:
+                    raise Exception("Model not found")
+
+                model = request.app.state.MODELS[model_id]
+                model_info = Models.get_model_by_id(model_id)
+
+                # Check if user has access to the model
+                if not BYPASS_MODEL_ACCESS_CONTROL and user.role == "user":
+                    try:
+                        check_model_access(user, model)
+                    except Exception as e:
+                        raise e
+            else:
+                model = model_item
+                model_info = None
+
+                request.state.direct = True
+                request.state.model = model
+
+            model_info_params = (
+                model_info.params.model_dump() if model_info and model_info.params else {}
+            )
+
+            # Chat Params
+            stream_delta_chunk_size = form_data.get("params", {}).get(
+                "stream_delta_chunk_size"
+            )
+
+            # Model Params
+            if model_info_params.get("stream_delta_chunk_size"):
+                stream_delta_chunk_size = model_info_params.get("stream_delta_chunk_size")
+
+            metadata = {
+                "user_id": user.id,
+                "chat_id": form_data.pop("chat_id", None),
+                "message_id": form_data.pop("id", None),
+                "session_id": form_data.pop("session_id", None),
+                "filter_ids": form_data.pop("filter_ids", []),
+                "tool_ids": form_data.get("tool_ids", None),
+                "tool_servers": form_data.pop("tool_servers", None),
+                "files": form_data.get("files", None),
+                "features": form_data.get("features", {}),
+                "variables": form_data.get("variables", {}),
+                "model": model,
+                "direct": model_item.get("direct", False),
+                "params": {
+                    "stream_delta_chunk_size": stream_delta_chunk_size,
+                    "function_calling": (
+                        "native"
+                        if (
+                            form_data.get("params", {}).get("function_calling") == "native"
+                            or model_info_params.get("function_calling") == "native"
+                        )
+                        else "default"
+                    ),
+                },
+                "zhealth_log_id": str(log_id),  # Add log ID to metadata
+            }
+
+            if metadata.get("chat_id") and (user and user.role != "admin"):
+                chat = Chats.get_chat_by_id_and_user_id(metadata["chat_id"], user.id)
+                if chat is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=ERROR_MESSAGES.DEFAULT(),
+                    )
+
+            request.state.metadata = metadata
+            form_data["metadata"] = metadata
+
+            form_data, metadata, events = await process_chat_payload(
+                request, form_data, user, metadata, model
+            )
+            
+            # Collect events from payload processing
+            if events:
+                collected_events.extend(events)
+                
+        except Exception as e:
+            log.debug(f"Error processing chat payload: {e}")
+            error_message = str(e)
+            if metadata.get("chat_id") and metadata.get("message_id"):
+                # Update the chat message with the error
+                Chats.upsert_message_to_chat_by_id_and_message_id(
+                    metadata["chat_id"],
+                    metadata["message_id"],
+                    {
+                        "error": {"content": str(e)},
+                    },
+                )
+            
+            # Log the error to Supabase
+            try:
+                ZhealthLogs.update_log(
+                    log_id=log_id,
+                    error=error_message,
+                    middleware_events=collected_events
+                )
+            except Exception as log_err:
+                log.error(f"Failed to log error to zhealth: {log_err}")
+
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            )
+
+        try:
+            response = await chat_completion_handler(request, form_data, user)
+            if metadata.get("chat_id") and metadata.get("message_id"):
+                Chats.upsert_message_to_chat_by_id_and_message_id(
+                    metadata["chat_id"],
+                    metadata["message_id"],
+                    {
+                        "model": model_id,
+                    },
+                )
+
+            # Process the response and capture all data for logging
+            # We need to handle both streaming and non-streaming responses
+            if isinstance(response, StreamingResponse):
+                # For streaming responses, we need to wrap the stream to capture data
+                async def log_streaming_response():
+                    nonlocal response_content, response_tokens, collected_citations, collected_sources
+                    
+                    async for chunk in response.body_iterator:
+                        # Try to parse the chunk for logging
+                        try:
+                            chunk_str = chunk.decode('utf-8') if isinstance(chunk, bytes) else str(chunk)
+                            # SSE format: data: {json}\n\n
+                            if chunk_str.startswith('data: '):
+                                json_str = chunk_str[6:].strip()
+                                if json_str and json_str != '[DONE]':
+                                    chunk_data = json.loads(json_str)
+                                    
+                                    # Extract content from choices
+                                    if 'choices' in chunk_data:
+                                        for choice in chunk_data['choices']:
+                                            if 'delta' in choice and 'content' in choice['delta']:
+                                                response_content += choice['delta']['content']
+                                            elif 'message' in choice and 'content' in choice['message']:
+                                                response_content = choice['message']['content']
+                                    
+                                    # Extract usage/tokens
+                                    if 'usage' in chunk_data:
+                                        response_tokens = chunk_data['usage']
+                                    
+                                    # Extract citations if present
+                                    if 'citations' in chunk_data:
+                                        collected_citations.extend(chunk_data['citations'])
+                                    
+                                    # Extract sources if present  
+                                    if 'sources' in chunk_data:
+                                        collected_sources.extend(chunk_data['sources'])
+                        except Exception as e:
+                            log.debug(f"Error parsing streaming chunk: {e}")
+                        
+                        yield chunk
+                    
+                    # After streaming completes, update the log
+                    try:
+                        ZhealthLogs.update_log(
+                            log_id=log_id,
+                            response_content=response_content,
+                            response_model=model_id,
+                            response_tokens=response_tokens,
+                            citations=collected_citations if collected_citations else None,
+                            sources=collected_sources if collected_sources else None,
+                            middleware_events=collected_events if collected_events else None
+                        )
+                    except Exception as e:
+                        log.error(f"Failed to update zhealth log after streaming: {e}")
+                
+                # Return a new StreamingResponse with our logging wrapper
+                return StreamingResponse(
+                    log_streaming_response(),
+                    media_type=response.media_type,
+                    headers=dict(response.headers) if hasattr(response, 'headers') else None
+                )
+            else:
+                # Non-streaming response - extract data directly
+                if isinstance(response, dict):
+                    response_data = response
+                elif isinstance(response, JSONResponse):
+                    try:
+                        response_data = json.loads(response.body.decode("utf-8"))
+                    except:
+                        response_data = {}
+                else:
+                    response_data = {}
+                
+                # Extract response content
+                if 'choices' in response_data and len(response_data['choices']) > 0:
+                    choice = response_data['choices'][0]
+                    if 'message' in choice and 'content' in choice['message']:
+                        response_content = choice['message']['content']
+                    elif 'text' in choice:
+                        response_content = choice['text']
+                
+                # Extract usage/tokens
+                if 'usage' in response_data:
+                    response_tokens = response_data['usage']
+                
+                # Extract citations
+                if 'citations' in response_data:
+                    collected_citations = response_data['citations']
+                
+                # Extract sources
+                if 'sources' in response_data:
+                    collected_sources = response_data['sources']
+                
+                # Update the log with response data
+                try:
+                    ZhealthLogs.update_log(
+                        log_id=log_id,
+                        response_content=response_content,
+                        response_model=model_id,
+                        response_tokens=response_tokens,
+                        citations=collected_citations if collected_citations else None,
+                        sources=collected_sources if collected_sources else None,
+                        middleware_events=collected_events if collected_events else None
+                    )
+                except Exception as e:
+                    log.error(f"Failed to update zhealth log: {e}")
+                
+                return await process_chat_response(
+                    request, response, form_data, user, metadata, model, events, tasks
+                )
+                
+        except Exception as e:
+            log.debug(f"Error in chat completion: {e}")
+            error_message = str(e)
+            if metadata.get("chat_id") and metadata.get("message_id"):
+                # Update the chat message with the error
+                Chats.upsert_message_to_chat_by_id_and_message_id(
+                    metadata["chat_id"],
+                    metadata["message_id"],
+                    {
+                        "error": {"content": str(e)},
+                    },
+                )
+            
+            # Log the error
+            try:
+                ZhealthLogs.update_log(
+                    log_id=log_id,
+                    error=error_message,
+                    middleware_events=collected_events
+                )
+            except Exception as log_err:
+                log.error(f"Failed to log error to zhealth: {log_err}")
+
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error(f"Unexpected error in zhealth chat completion: {e}")
+        try:
+            ZhealthLogs.update_log(
+                log_id=log_id,
+                error=str(e),
+                middleware_events=collected_events
+            )
+        except:
+            pass
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
 
 
 @app.post("/api/chat/completed")

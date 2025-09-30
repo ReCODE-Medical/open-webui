@@ -1020,8 +1020,9 @@ async def process_chat_payload(request, form_data, user, metadata, model):
         or source.get("source", {}).get("id", "")
     ]
 
-    if len(sources) > 0:
-        events.append({"sources": sources})
+    # NOTE: Temporarily eliding sources from the events
+    # if len(sources) > 0:
+        # events.append({"sources": sources})
 
     if model_knowledge:
         await event_emitter(

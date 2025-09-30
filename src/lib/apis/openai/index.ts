@@ -338,7 +338,7 @@ export const chatCompletion = async (
 	const controller = new AbortController();
 	let error = null;
 
-	const res = await fetch(`${url}/chat/completions`, {
+const res = await fetch(`${url}/chat/completions`, {
 		signal: controller.signal,
 		method: 'POST',
 		headers: {

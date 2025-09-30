@@ -1020,9 +1020,16 @@ async def process_chat_payload(request, form_data, user, metadata, model):
         or source.get("source", {}).get("id", "")
     ]
 
+    # Attach citations to metadata when requested by the caller (used by zhealth route)
+    try:
+        if metadata.get("include_sources"):
+            metadata["citations"] = sources
+    except Exception:
+        pass
+
     # NOTE: Temporarily eliding sources from the events
     # if len(sources) > 0:
-        # events.append({"sources": sources})
+    #     events.append({"sources": sources})
 
     if model_knowledge:
         await event_emitter(

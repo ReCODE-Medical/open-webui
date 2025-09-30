@@ -9,6 +9,7 @@ import sys
 import time
 import random
 from uuid import uuid4
+from datetime import datetime, timezone
 
 
 from contextlib import asynccontextmanager
@@ -102,6 +103,7 @@ from open_webui.models.models import Models
 from open_webui.models.users import UserModel, Users
 from open_webui.models.chats import Chats
 from open_webui.models.billing import SupabaseMessageUsage
+from open_webui.models.zhealth import ZHealthRequest, ZHealthEvent
 
 from open_webui.config import (
     # Ollama
@@ -455,6 +457,7 @@ from open_webui.utils.auth import (
     decode_token,
     get_admin_user,
     get_verified_user,
+    get_current_user_by_api_key,
 )
 from open_webui.utils.plugin import install_tool_and_function_dependencies
 from open_webui.utils.oauth import OAuthManager
@@ -1469,6 +1472,225 @@ async def chat_completion(
                     "error": {"content": str(e)},
                 },
             )
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+
+@app.post("/api/chat/zhealth/completions")
+@app.post("/api/v1/chat/zhealth/completions")
+async def chat_completion_zhealth(request: Request, form_data: dict):
+    # API-key only auth
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
+
+    api_key = auth_header.split(" ", 1)[1]
+    try:
+        user = get_current_user_by_api_key(api_key)
+    except HTTPException as e:
+        raise e
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
+
+    # Ensure models are loaded
+    if not request.app.state.MODELS:
+        await get_all_models(request, user=user)
+
+    start_time = int(time.time() * 1000)
+    # Signal to middleware to keep citations
+    model_id = form_data.get("model", None)
+    model_item = form_data.pop("model_item", {})
+    tasks = form_data.pop("background_tasks", None)
+
+    metadata = {}
+    request_row = None
+    request_uuid = uuid4()
+    request_id = str(request_uuid)
+    try:
+        if not model_item.get("direct", False):
+            if model_id not in request.app.state.MODELS:
+                raise Exception("Model not found")
+
+            model = request.app.state.MODELS[model_id]
+            model_info = Models.get_model_by_id(model_id)
+        else:
+            model = model_item
+            model_info = None
+            request.state.direct = True
+            request.state.model = model
+
+        model_info_params = (
+            model_info.params.model_dump() if model_info and model_info.params else {}
+        )
+
+        stream_delta_chunk_size = form_data.get("params", {}).get(
+            "stream_delta_chunk_size"
+        )
+        if model_info_params.get("stream_delta_chunk_size"):
+            stream_delta_chunk_size = model_info_params.get("stream_delta_chunk_size")
+
+        metadata = {
+            "user_id": user.id,
+            "chat_id": form_data.pop("chat_id", None),
+            "message_id": form_data.pop("id", None),
+            "session_id": form_data.pop("session_id", None),
+            "filter_ids": form_data.pop("filter_ids", []),
+            "tool_ids": form_data.get("tool_ids", None),
+            "tool_servers": form_data.pop("tool_servers", None),
+            "files": form_data.get("files", None),
+            "features": form_data.get("features", {}),
+            "variables": form_data.get("variables", {}),
+            "model": model,
+            "direct": model_item.get("direct", False),
+            # enable capturing sources in middleware
+            "include_sources": True,
+            # pass request_id so event emitter can associate events
+            "zhealth_request_id": request_id,
+            "params": {
+                "stream_delta_chunk_size": stream_delta_chunk_size,
+                "function_calling": (
+                    "native"
+                    if (
+                        form_data.get("params", {}).get("function_calling") == "native"
+                        or model_info_params.get("function_calling") == "native"
+                    )
+                    else "default"
+                ),
+            },
+        }
+
+        if metadata.get("chat_id") and (user and user.role != "admin"):
+            chat = Chats.get_chat_by_id_and_user_id(metadata["chat_id"], user.id)
+            if chat is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=ERROR_MESSAGES.DEFAULT(),
+                )
+
+        request.state.metadata = metadata
+        form_data["metadata"] = metadata
+
+        # Persist initial request payload in Supabase
+        with get_supabase_db() as db:
+            request_row = ZHealthRequest(
+                id=request_uuid,
+                client="zhealth",
+                endpoint="/api/chat/zhealth/completions",
+                user_id=user.id,
+                model_id=model_id,
+                request_payload=form_data,
+                request_meta={
+                    "ip": request.client.host if request.client else None,
+                    "user_agent": request.headers.get("User-Agent"),
+                },
+                created_at=datetime.utcnow().replace(tzinfo=timezone.utc),
+                streaming=bool(form_data.get("stream")),
+            )
+            db.add(request_row)
+            db.commit()
+
+        form_data, metadata, events = await process_chat_payload(
+            request, form_data, user, metadata, model
+        )
+    except Exception as e:
+        # Update request with error
+        try:
+            with get_supabase_db() as db:
+                if request_row is None:
+                    request_row = ZHealthRequest(
+                        id=request_uuid,
+                        client="zhealth",
+                        endpoint="/api/chat/zhealth/completions",
+                        user_id=getattr(user, "id", None),
+                        model_id=model_id,
+                        created_at=datetime.utcnow().replace(tzinfo=timezone.utc),
+                    )
+                    db.add(request_row)
+                    db.commit()
+                db.query(ZHealthRequest).filter(ZHealthRequest.id == request_uuid).update({
+                    "error": {"detail": str(e)},
+                    "completed_at": datetime.utcnow().replace(tzinfo=timezone.utc),
+                })
+                db.commit()
+        except Exception:
+            pass
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+    try:
+        response = await chat_completion_handler(request, form_data, user)
+
+        if metadata.get("chat_id") and metadata.get("message_id"):
+            Chats.upsert_message_to_chat_by_id_and_message_id(
+                metadata["chat_id"],
+                metadata["message_id"],
+                {"model": model_id},
+            )
+
+        # Process response (handles streaming and non-streaming)
+        processed = await process_chat_response(
+            request, response, form_data, user, metadata, model, events, tasks
+        )
+
+        # Update citations after payload processing (available in metadata)
+        try:
+            with get_supabase_db() as db:
+                db.query(ZHealthRequest).filter(ZHealthRequest.id == request_uuid).update({
+                    "citations": metadata.get("citations"),
+                })
+                db.commit()
+        except Exception:
+            pass
+
+        # For non-streaming JSON, log response content and citations
+        if not isinstance(processed, StreamingResponse):
+            try:
+                response_obj = processed
+                status_code = 200
+                if isinstance(processed, JSONResponse):
+                    status_code = processed.status_code
+                    if isinstance(processed.body, bytes):
+                        response_obj = json.loads(processed.body.decode("utf-8"))
+                    else:
+                        response_obj = processed.body
+
+                content = None
+                if isinstance(response_obj, dict):
+                    choices = response_obj.get("choices", [])
+                    if choices and choices[0].get("message", {}).get("content"):
+                        content = choices[0]["message"]["content"]
+
+                with get_supabase_db() as db:
+                    db.query(ZHealthRequest).filter(ZHealthRequest.id == request_uuid).update({
+                        "response_status": status_code,
+                        "response_payload": response_obj if isinstance(response_obj, dict) else None,
+                        "response_content": content,
+                        "completed_at": datetime.utcnow().replace(tzinfo=timezone.utc),
+                        "duration_ms": int(int(time.time()*1000) - start_time),
+                    })
+                    db.commit()
+            except Exception:
+                pass
+
+        return processed
+    except Exception as e:
+        # Update with error on failure
+        try:
+            with get_supabase_db() as db:
+                db.query(ZHealthRequest).filter(ZHealthRequest.id == request_uuid).update({
+                    "error": {"detail": str(e)},
+                    "completed_at": datetime.utcnow().replace(tzinfo=timezone.utc),
+                    "duration_ms": int(int(time.time()*1000) - start_time),
+                })
+                db.commit()
+        except Exception:
+            pass
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

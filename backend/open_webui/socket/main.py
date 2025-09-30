@@ -1,5 +1,7 @@
 import asyncio
 import random
+import uuid
+from datetime import datetime, timezone
 
 import socketio
 import logging
@@ -13,6 +15,8 @@ from open_webui.models.users import Users, UserNameResponse
 from open_webui.models.channels import Channels
 from open_webui.models.chats import Chats
 from open_webui.models.notes import Notes, NoteUpdateForm
+from open_webui.models.zhealth import ZHealthEvent
+from open_webui.internal.db import get_supabase_db
 from open_webui.utils.redis import (
     get_sentinels_from_env,
     get_sentinel_url_from_env,
@@ -665,6 +669,27 @@ def get_event_emitter(request_info, update_db=True):
         ]
 
         await asyncio.gather(*emit_tasks)
+
+        # Persist event for zhealth if request id present
+        try:
+            z_req_id = request_info.get("zhealth_request_id")
+            if z_req_id:
+                with get_supabase_db() as db:
+                    db.add(
+                        ZHealthEvent(
+                            id=uuid.uuid4(),
+                            request_id=z_req_id,
+                            user_id=request_info.get("user_id"),
+                            chat_id=request_info.get("chat_id"),
+                            message_id=request_info.get("message_id"),
+                            type=event_data.get("type"),
+                            data=event_data.get("data", event_data),
+                            created_at=datetime.utcnow().replace(tzinfo=timezone.utc),
+                        )
+                    )
+                    db.commit()
+        except Exception:
+            pass
 
         if update_db:
             if "type" in event_data and event_data["type"] == "status":

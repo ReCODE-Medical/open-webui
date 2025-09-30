@@ -17,7 +17,7 @@ from open_webui.env import (
     SUPABASE_DATABASE_URL,
 )
 from peewee_migrate import Router
-from sqlalchemy import Dialect, create_engine, MetaData, types
+from sqlalchemy import Dialect, create_engine, MetaData, types, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import QueuePool, NullPool
@@ -156,6 +156,16 @@ def init_supa_table(tables: list):
     except Exception as e:
         log.warning(f"Failed to initialize Supabase tables: {e}")
         raise
+
+
+def create_schema_in_supabase(schema_name: str):
+    """Create a schema in the Supabase (Postgres) database if it does not exist."""
+    try:
+        with supa_engine.connect() as conn:
+            conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema_name}"))
+            conn.commit()
+    except Exception as e:
+        log.warning(f"Failed to ensure schema '{schema_name}' in Supabase: {e}")
 
 
 def get_main_session():

@@ -235,21 +235,13 @@ class ChatTable:
         def supa_update():
             try:
                 with get_supabase_db() as supabase_db:
-                    supa_chat_item = supabase_db.get(Chat, id)
-                    if supa_chat_item:
-                        # Update existing record
-                        supa_chat_item.chat = chat
-                        supa_chat_item.title = chat["title"] if "title" in chat else "New Chat"
-                        supa_chat_item.updated_at = int(time.time())
+                    # Get the full chat data from primary DB
+                    primary_chat = self.get_chat_by_id(id)
+                    if primary_chat:
+                        # Use merge for atomic UPSERT (avoids race conditions)
+                        supa_chat = Chat(**primary_chat.model_dump())
+                        supabase_db.merge(supa_chat)
                         supabase_db.commit()
-                    else:
-                        # Create new record if it doesn't exist (e.g., if initial backup failed)
-                        # Get the full chat data from primary DB to recreate in Supabase
-                        primary_chat = self.get_chat_by_id(id)
-                        if primary_chat:
-                            supa_result = Chat(**primary_chat.model_dump())
-                            supabase_db.add(supa_result)
-                            supabase_db.commit()
             except Exception as e:
                 log.warning(f"Supabase update failed: {e}")
 
@@ -448,7 +440,6 @@ class ChatTable:
                 db.commit()
                 db.refresh(chat)
                 result = ChatModel.model_validate(chat)
-                new_pinned_state = chat.pinned  # Capture the new state
         except Exception:
             return None
 
@@ -456,18 +447,13 @@ class ChatTable:
         def supa_toggle():
             try:
                 with get_supabase_db() as supabase_db:
-                    supa_chat = supabase_db.get(Chat, id)
-                    if supa_chat:
-                        supa_chat.pinned = new_pinned_state  # Use same value as primary DB
-                        supa_chat.updated_at = int(time.time())
+                    # Get the full chat data from primary DB
+                    primary_chat = self.get_chat_by_id(id)
+                    if primary_chat:
+                        # Use merge for atomic UPSERT (avoids race conditions)
+                        supa_chat = Chat(**primary_chat.model_dump())
+                        supabase_db.merge(supa_chat)
                         supabase_db.commit()
-                    else:
-                        # Create new record if it doesn't exist (e.g., if initial backup failed)
-                        primary_chat = self.get_chat_by_id(id)
-                        if primary_chat:
-                            supa_result = Chat(**primary_chat.model_dump())
-                            supabase_db.add(supa_result)
-                            supabase_db.commit()
             except Exception as e:
                 log.warning(f"Supabase pinned toggle failed: {e}")
 
@@ -484,7 +470,6 @@ class ChatTable:
                 db.commit()
                 db.refresh(chat)
                 result = ChatModel.model_validate(chat)
-                new_archived_state = chat.archived  # Capture the new state
         except Exception:
             return None
 
@@ -492,18 +477,13 @@ class ChatTable:
         def supa_toggle():
             try:
                 with get_supabase_db() as supabase_db:
-                    supa_chat = supabase_db.get(Chat, id)
-                    if supa_chat:
-                        supa_chat.archived = new_archived_state  # Use same value as primary DB
-                        supa_chat.updated_at = int(time.time())
+                    # Get the full chat data from primary DB
+                    primary_chat = self.get_chat_by_id(id)
+                    if primary_chat:
+                        # Use merge for atomic UPSERT (avoids race conditions)
+                        supa_chat = Chat(**primary_chat.model_dump())
+                        supabase_db.merge(supa_chat)
                         supabase_db.commit()
-                    else:
-                        # Create new record if it doesn't exist (e.g., if initial backup failed)
-                        primary_chat = self.get_chat_by_id(id)
-                        if primary_chat:
-                            supa_result = Chat(**primary_chat.model_dump())
-                            supabase_db.add(supa_result)
-                            supabase_db.commit()
             except Exception as e:
                 log.warning(f"Supabase archive toggle failed: {e}")
 

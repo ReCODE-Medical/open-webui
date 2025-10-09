@@ -1659,6 +1659,13 @@ async def zhealth_chat_completion(
     model_id = form_data.get("model", None)
     log_id = _create_zhealth_log_entry(user, model_id, form_data)
     collected_events = []
+    
+    # Initialize variables at function scope to avoid UnboundLocalError in exception handlers
+    metadata = {}
+    model = None
+    model_item = {}
+    tasks = None
+    events = []
 
     try:
         # Ensure models are loaded
@@ -1738,8 +1745,12 @@ async def zhealth_chat_completion(
             if events:
                 collected_events.extend(events)
 
+        except HTTPException:
+            # Re-raise HTTPExceptions as-is
+            raise
         except Exception as e:
-            log.debug(f"Error processing chat payload: {e}")
+            # Log the real error at error level for visibility
+            log.error(f"Error processing chat payload in zhealth endpoint: {e}", exc_info=True)
             if metadata.get("chat_id") and metadata.get("message_id"):
                 Chats.upsert_message_to_chat_by_id_and_message_id(
                     metadata["chat_id"],
@@ -1809,8 +1820,12 @@ async def zhealth_chat_completion(
                     request, response, form_data, user, metadata, model, events, tasks
                 )
 
+        except HTTPException:
+            # Re-raise HTTPExceptions as-is
+            raise
         except Exception as e:
-            log.debug(f"Error in chat completion: {e}")
+            # Log the real error at error level for visibility
+            log.error(f"Error in chat completion handler in zhealth endpoint: {e}", exc_info=True)
             if metadata.get("chat_id") and metadata.get("message_id"):
                 Chats.upsert_message_to_chat_by_id_and_message_id(
                     metadata["chat_id"],
@@ -1832,7 +1847,7 @@ async def zhealth_chat_completion(
     except HTTPException:
         raise
     except Exception as e:
-        log.error(f"Unexpected error in zhealth chat completion: {e}")
+        log.error(f"Unexpected error in zhealth chat completion endpoint: {e}", exc_info=True)
         _update_zhealth_log_safe(log_id, error=str(e), middleware_events=collected_events)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

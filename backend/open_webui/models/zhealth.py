@@ -92,14 +92,12 @@ class ZhealthLogForm(BaseModel):
 class ZhealthLogsTable:
     def __init__(self):
         self._init_table()
+        # Thread pool for non-blocking Supabase write operations
+        # Multiple workers allow concurrent updates for different requests
         self.supa_executor = ThreadPoolExecutor(
             max_workers=4, 
             thread_name_prefix="supa_zhealth_worker"
         )
-
-    def _async_supa_write(self, operation):
-        """Helper method to execute Supabase operations asynchronously"""
-        self.supa_executor.submit(operation)
 
     def __del__(self):
         """Cleanup thread pool on deletion"""
@@ -123,7 +121,12 @@ class ZhealthLogsTable:
         request_params: dict | None = None,
         log_metadata: dict | None = None
     ) -> Optional[ZhealthLogModel]:
-        """Create a new zhealth log entry"""
+        """
+        Create a new zhealth log entry (synchronous).
+        
+        This must be synchronous because we need the log_id returned immediately
+        to use throughout the request lifecycle.
+        """
         try:
             with get_supabase_db() as db:
                 log_entry = ZhealthLog(
@@ -158,55 +161,74 @@ class ZhealthLogsTable:
         sources: list | None = None,
         middleware_events: list | None = None,
         error: str | None = None
-    ) -> Optional[ZhealthLogModel]:
-        """Update an existing zhealth log entry with response data"""
+    ):
+        """
+        Update an existing zhealth log entry (non-blocking, fire-and-forget).
+        
+        This runs in a background thread to avoid blocking the async event loop.
+        Multiple updates for different log_ids can run concurrently.
+        
+        Note: If called multiple times for the same log_id, the last update to 
+        commit wins. In practice, each endpoint typically calls this once with 
+        all final data, so race conditions are rare.
+        """
+        def _do_update():
+            try:
+                with get_supabase_db() as db:
+                    log_entry = db.query(ZhealthLog).filter(ZhealthLog.id == log_id).first()
+                    if log_entry:
+                        log_entry.response_timestamp = datetime.utcnow()
+                        if response_content is not None:
+                            log_entry.response_content = response_content
+                        if response_model is not None:
+                            log_entry.response_model = response_model
+                        if response_tokens is not None:
+                            log_entry.response_tokens = response_tokens
+                        if citations is not None:
+                            log_entry.citations = citations
+                        if sources is not None:
+                            log_entry.sources = sources
+                        if middleware_events is not None:
+                            log_entry.middleware_events = middleware_events
+                        if error is not None:
+                            log_entry.error = error
+                        log_entry.updated_at = datetime.utcnow()
+                        db.commit()
+                        log.info(f"Updated zhealth log entry: {log_id}")
+                    else:
+                        log.warning(f"Zhealth log entry not found: {log_id}")
+            except Exception as e:
+                log.error(f"Failed to update zhealth log {log_id}: {e}")
+        
         try:
-            with get_supabase_db() as db:
-                log_entry = db.query(ZhealthLog).filter(ZhealthLog.id == log_id).first()
-                if log_entry:
-                    log_entry.response_timestamp = datetime.utcnow()
-                    if response_content is not None:
-                        log_entry.response_content = response_content
-                    if response_model is not None:
-                        log_entry.response_model = response_model
-                    if response_tokens is not None:
-                        log_entry.response_tokens = response_tokens
-                    if citations is not None:
-                        log_entry.citations = citations
-                    if sources is not None:
-                        log_entry.sources = sources
-                    if middleware_events is not None:
-                        log_entry.middleware_events = middleware_events
-                    if error is not None:
-                        log_entry.error = error
-                    log_entry.updated_at = datetime.utcnow()
-                    db.commit()
-                    db.refresh(log_entry)
-                    log.info(f"Updated zhealth log entry: {log_id}")
-                    return ZhealthLogModel.model_validate(log_entry)
-                else:
-                    log.warning(f"Zhealth log entry not found: {log_id}")
-                    return None
+            self.supa_executor.submit(_do_update)
         except Exception as e:
-            log.error(f"Failed to update zhealth log: {e}")
-            return None
+            log.error(f"Failed to submit zhealth update to thread pool: {e}")
     
-    def add_middleware_event(self, log_id: uuid.UUID, event: dict) -> bool:
-        """Add a middleware event to an existing log"""
+    def add_middleware_event(self, log_id: uuid.UUID, event: dict):
+        """
+        Add a middleware event to an existing log (non-blocking, fire-and-forget).
+        
+        This runs in a background thread to avoid blocking the async event loop.
+        """
+        def _do_add_event():
+            try:
+                with get_supabase_db() as db:
+                    log_entry = db.query(ZhealthLog).filter(ZhealthLog.id == log_id).first()
+                    if log_entry:
+                        if log_entry.middleware_events is None:
+                            log_entry.middleware_events = []
+                        log_entry.middleware_events.append(event)
+                        log_entry.updated_at = datetime.utcnow()
+                        db.commit()
+                        log.debug(f"Added middleware event to log {log_id}")
+            except Exception as e:
+                log.error(f"Failed to add middleware event to log {log_id}: {e}")
+        
         try:
-            with get_supabase_db() as db:
-                log_entry = db.query(ZhealthLog).filter(ZhealthLog.id == log_id).first()
-                if log_entry:
-                    if log_entry.middleware_events is None:
-                        log_entry.middleware_events = []
-                    log_entry.middleware_events.append(event)
-                    log_entry.updated_at = datetime.utcnow()
-                    db.commit()
-                    return True
-                return False
+            self.supa_executor.submit(_do_add_event)
         except Exception as e:
-            log.error(f"Failed to add middleware event: {e}")
-            return False
+            log.error(f"Failed to submit middleware event to thread pool: {e}")
     
     def get_log_by_id(self, log_id: uuid.UUID) -> Optional[ZhealthLogModel]:
         """Get a log entry by ID"""

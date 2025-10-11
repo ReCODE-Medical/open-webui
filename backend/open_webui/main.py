@@ -1522,6 +1522,21 @@ generate_chat_completion = chat_completion
 def _create_zhealth_log_entry(user, model_id: str | None, form_data: dict):
     """Create initial zhealth log entry and return log_id."""
     try:
+        # Extract optional app_metadata from request
+        app_metadata = form_data.get("app_metadata")
+        
+        # Build base log metadata
+        log_metadata = {
+            "api_version": "v1",
+            "endpoint": "/api/zhealth/v1/chat/completions",
+            "user_role": user.role,
+            "user_name": user.name,
+        }
+        
+        # Merge app_metadata if provided and valid
+        if app_metadata and isinstance(app_metadata, dict):
+            log_metadata["app_metadata"] = app_metadata
+        
         log_entry = ZhealthLogs.create_log(
             user_id=user.id,
             user_email=user.email,
@@ -1536,12 +1551,7 @@ def _create_zhealth_log_entry(user, model_id: str | None, form_data: dict):
                 "frequency_penalty": form_data.get("frequency_penalty"),
                 "presence_penalty": form_data.get("presence_penalty"),
             },
-            log_metadata={
-                "api_version": "v1",
-                "endpoint": "/api/zhealth/v1/chat/completions",
-                "user_role": user.role,
-                "user_name": user.name,
-            }
+            log_metadata=log_metadata
         )
         if log_entry:
             log.info(f"Created zhealth log entry: {log_entry.id}")
@@ -1655,6 +1665,17 @@ async def zhealth_chat_completion(
     """
     Zhealth-specific chat completion endpoint that logs all requests, responses,
     citations, and middleware events to Supabase.
+    
+    Accepts optional 'app_metadata' field in request body for application identification:
+    {
+        "model": "gpt-4",
+        "messages": [...],
+        "app_metadata": {
+            "app_name": "MyApp",
+            "app_version": "1.0.0",
+            "environment": "production"
+        }
+    }
     """
     model_id = form_data.get("model", None)
     log_id = _create_zhealth_log_entry(user, model_id, form_data)

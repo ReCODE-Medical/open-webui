@@ -1,9 +1,8 @@
 services:
   open-webui:
-    # build:
-    #   context: .
-    #   dockerfile: Dockerfile
-    image: recode.azurecr.io/recode-chat:recode-v1-latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: open-webui
     volumes:  # Config mount reference: https://github.com/rndmcnlly/brace/blob/main/compose.yaml 
       - open-webui:/app/backend/data
@@ -23,12 +22,13 @@ services:
     environment:
       ENV: prod
       WEBUI_NAME: ReCODE Chat
+      MAIN_LOG_LEVEL: DEBUG  # Enable debug logging for middleware to see sources
       WEBUI_FAVICON_URL: https://recodemedical.com/wp-content/uploads/2025/03/logo.svg
       WEBUI_SECRET_KEY: 
       
-      ENABLE_SIGNUP: "false"
+      ENABLE_SIGNUP: "true"
       ENABLE_OAUTH_SIGNUP: true
-      ENABLE_LOGIN_FORM: "false"
+      ENABLE_LOGIN_FORM: "true"
       
       ENABLE_USAGE_LIMITS: "false"
       ENABLE_VERSION_UPDATE_CHECK: "false"
@@ -76,7 +76,6 @@ services:
       QDRANT_GRPC_PORT: 6334  # Only needed if PREFER_GRPC is true
       QDRANT_TIMEOUT: 30  # Timeout in seconds
       QDRANT_HNSW_M: 16  # HNSW algorithm parameter for performance tuning
-      ENABLE_QDRANT_MULTITENANCY_MODE: "true"
 
       RAG_EMBEDDING_ENGINE: openai
       RAG_EMBEDDING_MODEL: text-embedding-3-large

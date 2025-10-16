@@ -1,4 +1,22 @@
-## ReCODE v0.1
+# ReCODE v1.0
+## Build
+In production, use [docker-compose.recode.yaml](./docker-compose.recode.yaml). Locally, there is [docker-compose.recode.dev.yaml](./docker-compose.recode.dev.yaml), which just allows for user login via the form, to dodge Auth0. We should probably just add the appropriate callback URL for dev purposes to avoid this.
+
+### Coolify Notes
+Even with a significantly larger Azure VM, we cannot build while the app is running...
+This is due to the fact that we stopped surgically removing all the unnecessary dependencies because of the cognitive load it added to rebasing and because we wanted 
+to make use of the re-ranking model, which pulls in pytorch.
+
+So, currently, you must stop the current container, then build and deploy. 
+
+I am working on setting up the container registry and and a github-actions build step so we can off load this work and just pull the updated image.
+
+
+
+
+
+
+# ReCODE v0.1
 This represents the first major version of ReCODE Chat that uses a fork of OWUI.
 
 ## Build
